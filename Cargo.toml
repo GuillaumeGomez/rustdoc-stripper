@@ -1,0 +1,4 @@
+[package]
+name = "rustdoc-stripper"
+version = "0.1.0"
+authors = ["Guillaume Gomez <guillaume1.gomez@gmail.com>"]
