@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{env, fs};
+use std::fs;
 use std::fs::{File, OpenOptions};
-use std::io::BufReader;
+use std::io::{BufReader, SeekFrom, BufRead, Write, Read, Seek};
+use std::fmt::{Display, Formatter, Error};
 
 struct CommentEntry {
     line: String,
@@ -26,27 +27,30 @@ impl CommentEntry {
     pub fn new(file: &str) -> CommentEntry {
         CommentEntry {
             line: String::new(),
-	    file: file.into_owned(),
-	    comment_lines: Vec::new(),
+            file: file.to_owned(),
+            comment_lines: Vec::new(),
         }
     }
 }
 
 impl Display for CommentEntry {
-    fn display(&self, f: &mut Formatter) -> io::Result<> {
-        write!(f, "=|={}", self.line);
-        writeln!(f, "=!={}", self.file);
-	for comment in self.comment_lines {
-             write!(f, "{}", comment);
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        let mut out = format!("=!={}\n=|={}\n", self.file, self.line);
+
+        //println!("{}: {} => {:?}", self.file, self.line, self.comment_lines);
+        for comment in &self.comment_lines {
+            out.push_str(&comment);
+            out.push_str("\n");
         }
+        writeln!(f, "{}", out)
     }
 }
 
-fn loop_over_files(path: &str, comments: &mut Vec<CommentEntry>) {
+fn loop_over_files(path: &str, comments: &mut File) {
     match fs::read_dir(path) {
         Ok(it) => {
             for entry in it {
-                check_path_type(entry.path().to_str().unwrap(), comments);
+                check_path_type(entry.unwrap().path().to_str().unwrap(), comments);
             }
         }
         Err(e) => {
@@ -55,51 +59,51 @@ fn loop_over_files(path: &str, comments: &mut Vec<CommentEntry>) {
     }
 }
 
-fn move_reader(reader: &mut BufReader, first_line: &str, file: &str,
-               comments: &mut Vec<CommentEntry>) -> Option<String> {
+fn move_reader(it: &mut usize, lines: &[&str], file: &str,
+               comments: &mut File) {
     let mut cm = CommentEntry::new(file);
-    let mut current = String::new();
 
-    cm.comment_lines.push(first_line.to_owned());
-    loop {
-        if reader.read_line(&mut current).unwrap() < 1 {
-            // error
-	    return None;
-        }
-	if current.trim_left().starts_with("///") {
-            cm.comment_lines.push(current.clone());
+    cm.comment_lines.push(lines[*it].to_owned());
+    *it += 1;
+    while *it < lines.len() {
+        if lines[*it].trim_left().starts_with("///") {
+            cm.comment_lines.push(lines[*it].to_owned());
         } else {
             break;
         }
+        *it += 1;
     }
-    cm.line = current.clone();
-    comments.push(cm);
-    Some(current)
+    cm.line = lines[*it].to_owned();
+    write!(comments, "{}", cm).unwrap();
+    comments.flush();
 }
 
-fn strip_comments(path: &str, comments: &mut Vec<CommentEntry>) {
-    match FileOptions::new().read(true).write(true).open(path) {
-        Ok(f) => {
-            let mut reader = BufReader::new(f);
-            let mut line = String::new();
-	    let mut out_lines = vec!();
+fn strip_comments(path: &str, comments: &mut File) {
+    match OpenOptions::new().read(true).write(true).open(path) {
+        Ok(mut f) => {
+            let mut out_lines = vec!();
+            let mut content = String::new();
+            f.read_to_string(&mut content).unwrap();
+            let lines : Vec<&str> = content.split('\n').collect();
+            let mut it = 0;
 
-	    while reader.read_line(&mut buffer).unwrap() > 0 {
-                let mut worker = buffer.trim_left().to_owned();
+            while it < lines.len() {
+                let worker = lines[it].trim_left().to_owned();
 
                 if worker.starts_with("///") {
                     // "normal" doc comments
-                    out_lines.push(move_reader(&mut reader, &line, path, comments).unwrap());
-                } else if worker.starts_with("//!")/* || worker.starts_with("/*!")*/ {
+                    move_reader(&mut it, &lines, path, comments);
+                } else if worker.starts_with("//!")/* || worker.starts_with("/*!*/")*/ {
                     // module comments
+                    move_reader(&mut it, &lines, path, comments);
                 }
-                buffer.clear();
+                out_lines.push(lines[it].to_owned());
+                it += 1;
             }
-	    f.seek(SeekFrom::Start(0));
-            let mut writer = BufWriter::new(f);
-
-	    for line in out_lines {
-                write!(writer, "{}", line).unwrap();
+            println!("end of loop");
+            f.seek(SeekFrom::Start(0)).unwrap();
+            for line in out_lines {
+                writeln!(f, "{}", line).unwrap();
             }
         }
         Err(e) => {
@@ -108,12 +112,16 @@ fn strip_comments(path: &str, comments: &mut Vec<CommentEntry>) {
     }
 }
 
-fn check_path_type(path: &str, comments: &mut Vec<CommentEntry>) {
+fn check_path_type(path: &str, comments: &mut File) {
     match fs::metadata(path) {
         Ok(m) => {
             if m.is_dir() {
+                if path == ".." || path == "." {
+                    return;
+                }
                 loop_over_files(path, comments);
             } else {
+                println!("-> {}", path);
                 strip_comments(path, comments);
             }
         }
@@ -124,7 +132,14 @@ fn check_path_type(path: &str, comments: &mut Vec<CommentEntry>) {
 }
 
 fn main() {
-    let mut comments = vec!();
-
-    check_path_type(".", &mut comments);
+    println!("Starting...");
+    match OpenOptions::new().write(true).create(true).truncate(true).open("comments.cmts") {
+        Ok(mut f) => {
+            loop_over_files(".", &mut f);
+        }
+        Err(e) => {
+            println!("Error while opening \"{}\": {}", "comments.cmts", e);
+        }
+    }
+    println!("Done !");
 }
