@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs;
-use std::fs::{File, OpenOptions};
+use std::fs::{self, File, OpenOptions};
 use std::io::{BufReader, SeekFrom, BufRead, Write, Read, Seek};
 use std::fmt::{Display, Formatter, Error};
+use std::path::PathBuf;
 
 struct CommentEntry {
     line: String,
@@ -46,7 +46,7 @@ impl Display for CommentEntry {
     }
 }
 
-fn loop_over_files(path: &str, comments: &mut File) {
+fn loop_over_files(path: &str, comments: &mut Vec<CommentEntry>) {
     match fs::read_dir(path) {
         Ok(it) => {
             for entry in it {
@@ -60,7 +60,7 @@ fn loop_over_files(path: &str, comments: &mut File) {
 }
 
 fn move_reader(it: &mut usize, lines: &[&str], file: &str,
-               comments: &mut File) {
+               comments: &mut Vec<CommentEntry>) {
     let mut cm = CommentEntry::new(file);
 
     cm.comment_lines.push(lines[*it].to_owned());
@@ -74,12 +74,13 @@ fn move_reader(it: &mut usize, lines: &[&str], file: &str,
         *it += 1;
     }
     cm.line = lines[*it].to_owned();
-    write!(comments, "{}", cm).unwrap();
-    comments.flush();
+    comments.push(cm);
+    //write!(comments, "{}", cm).unwrap();
+    //comments.flush();
 }
 
-fn strip_comments(path: &str, comments: &mut File) {
-    match OpenOptions::new().read(true).write(true).open(path) {
+fn strip_comments(path: &str, comments: &mut Vec<CommentEntry>) {
+    match File::open(path) {
         Ok(mut f) => {
             let mut out_lines = vec!();
             let mut content = String::new();
@@ -100,10 +101,21 @@ fn strip_comments(path: &str, comments: &mut File) {
                 out_lines.push(lines[it].to_owned());
                 it += 1;
             }
-            println!("end of loop");
-            f.seek(SeekFrom::Start(0)).unwrap();
-            for line in out_lines {
-                writeln!(f, "{}", line).unwrap();
+            let mut pb = PathBuf::from(path);
+            println!("{:?}", pb);
+            let tmp = format!("_{}", pb.file_name().unwrap().to_str().unwrap());
+            println!("{:?}", tmp);
+            pb.set_file_name(&tmp);
+            println!("{:?}", pb);
+            match OpenOptions::new().write(true).create(true).truncate(true).open(&pb) {
+                Ok(mut f) => {
+                    for line in out_lines {
+                        writeln!(f, "{}", line).unwrap();
+                    }
+                }
+                Err(e) => {
+                    println!("Unable to open \"{}\": {}", pb.to_str().unwrap(), e);
+                }
             }
         }
         Err(e) => {
@@ -112,7 +124,7 @@ fn strip_comments(path: &str, comments: &mut File) {
     }
 }
 
-fn check_path_type(path: &str, comments: &mut File) {
+fn check_path_type(path: &str, comments: &mut Vec<CommentEntry>) {
     match fs::metadata(path) {
         Ok(m) => {
             if m.is_dir() {
@@ -121,6 +133,9 @@ fn check_path_type(path: &str, comments: &mut File) {
                 }
                 loop_over_files(path, comments);
             } else {
+                if path == "./comments.cmts" {
+                    return;
+                }
                 println!("-> {}", path);
                 strip_comments(path, comments);
             }
@@ -133,13 +148,18 @@ fn check_path_type(path: &str, comments: &mut File) {
 
 fn main() {
     println!("Starting...");
+    match fs::remove_file("comments.cmts") { _ => {} }
+    let mut comments = vec!();
+    loop_over_files(".", &mut comments);
     match OpenOptions::new().write(true).create(true).truncate(true).open("comments.cmts") {
         Ok(mut f) => {
-            loop_over_files(".", &mut f);
+            for com_entry in comments {
+                write!(f, "{}", com_entry).unwrap();
+            }
+            println!("Done !");
         }
         Err(e) => {
             println!("Error while opening \"{}\": {}", "comments.cmts", e);
         }
     }
-    println!("Done !");
 }
