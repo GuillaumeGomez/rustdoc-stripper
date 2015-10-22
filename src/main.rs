@@ -54,6 +54,7 @@ struct TypeStruct {
     ty: Type,
     parent: Option<Box<TypeStruct>>,
     name: String,
+    args: Vec<String>,
 }
 
 impl TypeStruct {
@@ -61,7 +62,27 @@ impl TypeStruct {
         TypeStruct {
             ty: ty,
             name: name.to_owned(),
+            args: vec!(),
             parent: None,
+        }
+    }
+
+    fn from_args(ty: Type, args: Vec<String>) -> TypeStruct {
+        TypeStruct {
+            ty: ty,
+            name: String::new(),
+            args: args,
+            parent: None,
+        }
+    }
+}
+
+impl Display for TypeStruct {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        let parent = self.parent;
+        match parent {
+            Some(p) => writeln!(f, "{}{} {}{}", p, self.ty, self.name, self.args.join(" ")),
+            None => writeln!(f, "{} {}{}", self.ty, self.name, self.args.join(" ")),
         }
     }
 }
@@ -76,6 +97,8 @@ enum Type {
     Static,
     Type,
     Variant,
+    Impl,
+    Unknown,
 }
 
 impl Type {
@@ -88,16 +111,34 @@ impl Type {
             "const" => Type::Const,
             "static" => Type::Static,
             "type" => Type::Type,
+            "impl" => Type::Impl,
             _ => Type::Variant,
         }
     }
 }
 
-fn loop_over_files(path: &str/*, comments: &mut Vec<CommentEntry>*/) {
+impl Display for Type {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        match *self {
+            Type::Struct => write!(f, "struct"),
+            Type::Mod => write!(f, "mod"),
+            Type::Enum => write!(f, "enum"),
+            Type::Fn => write!(f, "fn"),
+            Type::Const => write!(f, "const"),
+            Type::Static => write!(f, "static"),
+            Type::Type => write!(f, "type"),
+            Type::Variant => write!(f, "variant"),
+            Type::Impl => write!(f, "impl"),
+            _ => write!(f, "?"),
+        }
+    }
+}
+
+fn loop_over_files(path: &str, f: &mut File) {
     match fs::read_dir(path) {
         Ok(it) => {
             for entry in it {
-                check_path_type(entry.unwrap().path().to_str().unwrap()/*, comments*/);
+                check_path_type(entry.unwrap().path().to_str().unwrap(), f);
             }
         }
         Err(e) => {
@@ -112,7 +153,20 @@ fn move_to(words: &[&str], it: &mut usize, limit: &str) {
     }
 }
 
-fn strip_comments(path: &str/*, comments: &mut Vec<CommentEntry>*/) {
+fn get_impl(words: &[&str], it: &mut usize) -> Vec<String> {
+    let mut v = vec!();
+
+    while (*it + 1) < words.len() {
+        if words[(*it + 1)] == "{" || words[(*it + 1)] == ";" {
+            break;
+        }
+        *it += 1;
+        v.push(words[*it].to_owned());
+    }
+    v
+}
+
+fn strip_comments(path: &str, f: &mut File) {
     match File::open(path) {
         Ok(mut f) => {
             let mut b_content = String::new();
@@ -120,6 +174,7 @@ fn strip_comments(path: &str/*, comments: &mut Vec<CommentEntry>*/) {
             let content = b_content.replace("{", " { ")
                                    .replace("}", " } ")
                                    .replace("///", "/// ")
+                                   .replace("//!", "//! ")
                                    .replace("\n", " \n ")
                                    .replace("(", " (");
             let b_content : Vec<&str> = b_content.split('\n').collect();
@@ -130,13 +185,16 @@ fn strip_comments(path: &str/*, comments: &mut Vec<CommentEntry>*/) {
 
             while it < words.len() {
                 match words[it] {
-                    "///" => {
+                    "///" | "//!" => {
                         event_list.push(EventType::Comment(b_content[line].to_owned()));
                         move_to(&words, &mut it, "\n");
                     }
                     "struct" | "mod" | "fn" | "enum" | "const" | "static" | "type" => {
                         event_list.push(EventType::Type(TypeStruct::new(Type::from(words[it]), words[it + 1])));
                         it += 1;
+                    }
+                    "impl" => {
+                        event_list.push(EventType::Type(TypeStruct::from_args(Type::Impl, get_impl(&words, &mut it))));
                     }
                     "{" => {
                         event_list.push(EventType::InScope);
@@ -147,18 +205,53 @@ fn strip_comments(path: &str/*, comments: &mut Vec<CommentEntry>*/) {
                     "\n" => {
                         line += 1;
                     }
-                    _ => {}
+                    _ => {
+                        event_list.push(EventType::Type(TypeStruct::new(Type::Unknown, words[it])));
+                    }
                 }
                 it += 1;
             }
-            for event in event_list {
+            writeln!(f, "=! {}", path).unwrap();
+            let mut current = None;
+
+            it = 0;
+            while it < event_list.len() {
+                let begin = it;
+                while match event_list[it] {
+                    EventType::Comment(_) => true,
+                    _ => false,
+                } {
+                    it += 1;
+                }
+                let mut current = match current {
+                    Some(c) => {
+                        match event_list[it] {
+                            EventType::Type(t) => {
+                                t.parent = Some(Box::new(c));
+                                t
+                            }
+                            _ => panic!("unexpected thing"),
+                        }
+                    },
+                    None => match event_list[it] {
+                        EventType::Type(t) => t,
+                        _ => panic!("unexpected thing"),
+                    }
+                };
+                // write data in file here
+                it += 1;
+            }
+            /*for event in event_list {
                 match event {
-                    EventType::Comment(s) => { println!("{}", s); }
+                    EventType::Comment(s) => {
+                        writeln!(f, "== {}", )
+                        println!("{}", s);
+                    }
                     EventType::Type(t) => { println!("{:?} {}", t.ty, t.name);}
                     EventType::InScope => { println!("{{"); }
                     EventType::OutScope => { println!("}}"); }
                 }
-            }
+            }*/
         }
         Err(e) => {
             println!("Unable to open \"{}\": {}", path, e);
@@ -166,20 +259,20 @@ fn strip_comments(path: &str/*, comments: &mut Vec<CommentEntry>*/) {
     }
 }
 
-fn check_path_type(path: &str/*, comments: &mut Vec<CommentEntry>*/) {
+fn check_path_type(path: &str, f: &mut File) {
     match fs::metadata(path) {
         Ok(m) => {
             if m.is_dir() {
                 if path == ".." || path == "." {
                     return;
                 }
-                loop_over_files(path/*, comments*/);
+                loop_over_files(path, f);
             } else {
                 if path == "./comments.cmts" {
                     return;
                 }
                 println!("-> {}", path);
-                strip_comments(path/*, comments*/);
+                strip_comments(path, f);
             }
         }
         Err(e) => {
@@ -191,10 +284,9 @@ fn check_path_type(path: &str/*, comments: &mut Vec<CommentEntry>*/) {
 fn main() {
     println!("Starting...");
     match fs::remove_file("comments.cmts") { _ => {} }
-    //let mut comments = vec!();
-    loop_over_files("."/*, &mut comments*/);
     match OpenOptions::new().write(true).create(true).truncate(true).open("comments.cmts") {
         Ok(mut f) => {
+            loop_over_files(".", &mut f);
             /*for com_entry in comments {
                 write!(f, "{}", com_entry).unwrap();
             }*/
