@@ -75,19 +75,28 @@ impl TypeStruct {
             parent: None,
         }
     }
-}
 
-impl Display for TypeStruct {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        let parent = self.parent;
-        match parent {
-            Some(p) => writeln!(f, "{}{} {}{}", p, self.ty, self.name, self.args.join(" ")),
-            None => writeln!(f, "{} {}{}", self.ty, self.name, self.args.join(" ")),
+    fn copy(&self) -> TypeStruct {
+        TypeStruct {
+            ty: self.ty,
+            name: self.name.clone(),
+            args: self.args.clone(),
+            parent: None,
         }
     }
 }
 
-#[derive(Debug)]
+impl Display for TypeStruct {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        let parent = &self.parent;
+        match parent {
+            &Some(ref p) => writeln!(f, "{}{} {}{}", p, self.ty, self.name, self.args.join(" ")),
+            &None => writeln!(f, "{} {}{}", self.ty, self.name, self.args.join(" ")),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
 enum Type {
     Struct,
     Mod,
@@ -166,7 +175,36 @@ fn get_impl(words: &[&str], it: &mut usize) -> Vec<String> {
     v
 }
 
-fn strip_comments(path: &str, f: &mut File) {
+fn add_to_type_scope(current: &Option<TypeStruct>, e: &Option<TypeStruct>) -> Option<TypeStruct> {
+    match current {
+        &Some(ref c) => {
+            match e {
+                &Some(ref t) => {
+                    let mut tmp = t.copy();
+                    tmp.parent = Some(Box::new(c.copy()));
+                    Some(tmp)
+                }
+                &None => Some(c.copy()),
+            }
+        },
+        &None => match e {
+            &Some(ref t) => Some(t.copy()),
+            &None => None,
+        }
+    }
+}
+
+fn type_out_scope(current: &Option<TypeStruct>) -> Option<TypeStruct> {
+    match current {
+        &Some(ref c) => match c.parent {
+            Some(ref p) => Some(p.copy()),
+            None => None,
+        },
+        &None => None,
+    }
+}
+
+fn strip_comments(path: &str, out_file: &mut File) {
     match File::open(path) {
         Ok(mut f) => {
             let mut b_content = String::new();
@@ -211,47 +249,46 @@ fn strip_comments(path: &str, f: &mut File) {
                 }
                 it += 1;
             }
-            writeln!(f, "=! {}", path).unwrap();
-            let mut current = None;
+            writeln!(out_file, "=! {}", path).unwrap();
+            let mut current : Option<TypeStruct> = None;
+            let mut waiting_type : Option<TypeStruct> = None;
 
             it = 0;
             while it < event_list.len() {
-                let begin = it;
-                while match event_list[it] {
-                    EventType::Comment(_) => true,
-                    _ => false,
-                } {
-                    it += 1;
-                }
-                let mut current = match current {
-                    Some(c) => {
-                        match event_list[it] {
-                            EventType::Type(t) => {
-                                t.parent = Some(Box::new(c));
-                                t
-                            }
-                            _ => panic!("unexpected thing"),
-                        }
-                    },
-                    None => match event_list[it] {
-                        EventType::Type(t) => t,
-                        _ => panic!("unexpected thing"),
+                match event_list[it] {
+                    EventType::Type(ref t) => {
+                        waiting_type = Some(t.copy());
                     }
-                };
-                // write data in file here
+                    EventType::InScope => {
+                        current = add_to_type_scope(&current, &waiting_type);
+                        waiting_type = None;
+                    }
+                    EventType::OutScope => {
+                        current = type_out_scope(&current);
+                        waiting_type = None;
+                    }
+                    EventType::Comment(ref c) => {
+                        let mut comments = format!("{}\n", c);
+
+                        it += 1;
+                        while match event_list[it] {
+                            EventType::Comment(ref c) => {
+                                comments.push_str(&format!("{}\n", c));
+                                true
+                            }
+                            EventType::Type(ref t) => {
+                                write!(out_file, "=|{}{}", t, comments).unwrap();
+                                false
+                            }
+                            _ => panic!("Comments cannot be written everywhere"),
+                        } {
+                            it += 1;
+                        }
+                        it -= 1;
+                    }
+                }
                 it += 1;
             }
-            /*for event in event_list {
-                match event {
-                    EventType::Comment(s) => {
-                        writeln!(f, "== {}", )
-                        println!("{}", s);
-                    }
-                    EventType::Type(t) => { println!("{:?} {}", t.ty, t.name);}
-                    EventType::InScope => { println!("{{"); }
-                    EventType::OutScope => { println!("}}"); }
-                }
-            }*/
         }
         Err(e) => {
             println!("Unable to open \"{}\": {}", path, e);
