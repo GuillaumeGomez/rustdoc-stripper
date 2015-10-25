@@ -13,9 +13,8 @@
 // limitations under the License.
 
 use std::fs::{self, File, OpenOptions};
-use std::io::{BufReader, SeekFrom, BufRead, Write, Read, Seek};
+use std::io::{BufRead, Write, Read};
 use std::fmt::{Display, Formatter, Error};
-use std::path::PathBuf;
 use std::ops::Deref;
 
 enum EventType {
@@ -107,6 +106,7 @@ enum Type {
     Type,
     Variant,
     Impl,
+    Use,
     Unknown,
 }
 
@@ -121,6 +121,7 @@ impl Type {
             "static" => Type::Static,
             "type" => Type::Type,
             "impl" => Type::Impl,
+            "use" => Type::Use,
             _ => Type::Variant,
         }
     }
@@ -138,6 +139,7 @@ impl Display for Type {
             Type::Type => write!(f, "type"),
             Type::Variant => write!(f, "variant"),
             Type::Impl => write!(f, "impl"),
+            Type::Use => write!(f, "use"),
             _ => write!(f, "?"),
         }
     }
@@ -156,16 +158,37 @@ fn loop_over_files(path: &str, f: &mut File) {
     }
 }
 
-fn move_to(words: &[&str], it: &mut usize, limit: &str) {
+fn move_to(words: &[&str], it: &mut usize, limit: &str, line: &mut usize) {
     while (*it + 1) < words.len() && limit.contains(words[*it + 1]) == false {
+        if words[*it] == "\n" {
+            *line += 1;
+        }
         *it += 1;
+    }
+    if words[*it] == "\n" {
+        *line += 1;
     }
 }
 
-fn get_impl(words: &[&str], it: &mut usize) -> Vec<String> {
+fn move_until(words: &[&str], it: &mut usize, limit: &str, line: &mut usize) {
+    while (*it + 1) < words.len() && limit != words[*it + 1] {
+        if words[*it] == "\n" {
+            *line += 1;
+        }
+        *it += 1;
+    }
+    if words[*it] == "\n" {
+        *line += 1;
+    }
+}
+
+fn get_impl(words: &[&str], it: &mut usize, line: &mut usize) -> Vec<String> {
     let mut v = vec!();
 
     while (*it + 1) < words.len() {
+        if words[*it] == "\n" {
+            *line += 1;
+        }
         if words[(*it + 1)] == "{" || words[(*it + 1)] == ";" {
             break;
         }
@@ -217,6 +240,8 @@ fn strip_comments(path: &str, out_file: &mut File) {
                                    .replace("}", " } ")
                                    .replace("///", "/// ")
                                    .replace("//!", "//! ")
+                                   .replace("/*!", "/*! ")
+                                   .replace("*/", " */")
                                    .replace("\n", " \n ")
                                    .replace("(", " (");
             let b_content : Vec<&str> = b_content.split('\n').collect();
@@ -229,18 +254,22 @@ fn strip_comments(path: &str, out_file: &mut File) {
                 match words[it] {
                     "///" => {
                         event_list.push(EventType::Comment(b_content[line].to_owned()));
-                        move_to(&words, &mut it, "\n");
+                        move_to(&words, &mut it, "\n", &mut line);
                     }
                     "//!" => {
                         event_list.push(EventType::FileComment(b_content[line].to_owned()));
-                        move_to(&words, &mut it, "\n");
+                        move_to(&words, &mut it, "\n", &mut line);
                     }
-                    "struct" | "mod" | "fn" | "enum" | "const" | "static" | "type" => {
+                    "/*!" => {
+                        event_list.push(EventType::FileComment(b_content[line].to_owned()));
+                        move_until(&words, &mut it, "*/", &mut line);
+                    }
+                    "struct" | "mod" | "fn" | "enum" | "const" | "static" | "type" | "use" => {
                         event_list.push(EventType::Type(TypeStruct::new(Type::from(words[it]), words[it + 1])));
                         it += 1;
                     }
                     "impl" => {
-                        event_list.push(EventType::Type(TypeStruct::from_args(Type::Impl, get_impl(&words, &mut it))));
+                        event_list.push(EventType::Type(TypeStruct::from_args(Type::Impl, get_impl(&words, &mut it, &mut line))));
                     }
                     "{" => {
                         event_list.push(EventType::InScope);
@@ -308,7 +337,7 @@ fn strip_comments(path: &str, out_file: &mut File) {
                                 comments.push_str(&format!("{}\n", c));
                                 true
                             }
-                            EventType::Type(ref t) => {
+                            EventType::Type(_) => {
                                 false
                             }
                             _ => panic!("Comments cannot be written everywhere"),
@@ -326,7 +355,7 @@ fn strip_comments(path: &str, out_file: &mut File) {
                                     }
                                 }
                             }
-                            _ => panic!("An item was expected"),
+                            _ => panic!("An item was expected for this comment: {}", comments),
                         } {
                             it += 1;
                         }
