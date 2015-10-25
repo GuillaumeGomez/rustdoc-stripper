@@ -171,14 +171,11 @@ fn move_to(words: &[&str], it: &mut usize, limit: &str, line: &mut usize) {
 }
 
 fn move_until(words: &[&str], it: &mut usize, limit: &str, line: &mut usize) {
-    while (*it + 1) < words.len() && limit != words[*it + 1] {
+    while (*it + 1) < words.len() && limit != words[*it] {
         if words[*it] == "\n" {
             *line += 1;
         }
         *it += 1;
-    }
-    if words[*it] == "\n" {
-        *line += 1;
     }
 }
 
@@ -261,8 +258,12 @@ fn strip_comments(path: &str, out_file: &mut File) {
                         move_to(&words, &mut it, "\n", &mut line);
                     }
                     "/*!" => {
-                        event_list.push(EventType::FileComment(b_content[line].to_owned()));
+                        let mark = line;
                         move_until(&words, &mut it, "*/", &mut line);
+                        for pos in mark..line {
+                            event_list.push(EventType::FileComment(b_content[pos].to_owned()));
+                        }
+                        event_list.push(EventType::FileComment("*/".to_owned()));
                     }
                     "struct" | "mod" | "fn" | "enum" | "const" | "static" | "type" | "use" => {
                         event_list.push(EventType::Type(TypeStruct::new(Type::from(words[it]), words[it + 1])));
@@ -314,7 +315,7 @@ fn strip_comments(path: &str, out_file: &mut File) {
                         waiting_type = None;
                     }
                     EventType::FileComment(ref c) => {
-                        let mut comments = format!("{}\n", c);
+                        let mut comments = format!("=/ {}\n", c);
 
                         it += 1;
                         while match event_list[it] {
