@@ -20,6 +20,7 @@ use std::ops::Deref;
 
 enum EventType {
     Comment(String),
+    FileComment(String),
     Type(TypeStruct),
     InScope,
     OutScope,
@@ -226,8 +227,12 @@ fn strip_comments(path: &str, out_file: &mut File) {
 
             while it < words.len() {
                 match words[it] {
-                    "///" | "//!" => {
+                    "///" => {
                         event_list.push(EventType::Comment(b_content[line].to_owned()));
+                        move_to(&words, &mut it, "\n");
+                    }
+                    "//!" => {
+                        event_list.push(EventType::FileComment(b_content[line].to_owned()));
                         move_to(&words, &mut it, "\n");
                     }
                     "struct" | "mod" | "fn" | "enum" | "const" | "static" | "type" => {
@@ -278,6 +283,21 @@ fn strip_comments(path: &str, out_file: &mut File) {
                         }*/
                         current = type_out_scope(&current);
                         waiting_type = None;
+                    }
+                    EventType::FileComment(ref c) => {
+                        let mut comments = format!("{}\n", c);
+
+                        it += 1;
+                        while match event_list[it] {
+                            EventType::FileComment(ref c) => {
+                                comments.push_str(&format!("=/ {}\n", c));
+                                true
+                            }
+                            _ => false,
+                        } {
+                            it += 1;
+                        }
+                        write!(out_file, "{}", comments).unwrap();
                     }
                     EventType::Comment(ref c) => {
                         let mut comments = format!("{}\n", c);
