@@ -16,32 +16,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{BufReader, SeekFrom, BufRead, Write, Read, Seek};
 use std::fmt::{Display, Formatter, Error};
 use std::path::PathBuf;
-
-/*struct CommentEntry {
-    file: String,
-    text: String,
-}
-
-impl CommentEntry {
-    fn new(file: &str, text: &str) -> CommentEntry {
-        
-    }
-}
-
-impl Display for CommentEntry {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        //let mut out = format!("=!={}\n=|={}\n", self.file, self.type_);
-        let mut out = String::new();
-
-        //println!("{}: {} => {:?}", self.file, self.line, self.comment_lines);
-        /*for comment in &self.comment_lines {
-            out.push_str(&comment);
-            out.push_str("\n");
-        }*/
-        //writeln!(f, "{}", out)
-        writeln!(f, "=!={}\n{}", self.file, self.text)
-    }
-}*/
+use std::ops::Deref;
 
 enum EventType {
     Comment(String),
@@ -76,13 +51,37 @@ impl TypeStruct {
         }
     }
 
-    fn copy(&self) -> TypeStruct {
+    fn empty() -> TypeStruct {
+        TypeStruct {
+            ty: Type::Unknown,
+            name: String::new(),
+            args: Vec::new(),
+            parent: None,
+        }
+    }
+}
+
+impl Clone for TypeStruct {
+    fn clone(&self) -> TypeStruct {
         TypeStruct {
             ty: self.ty,
             name: self.name.clone(),
             args: self.args.clone(),
-            parent: None,
+            parent: match self.parent {
+                Some(ref p) => Some(Box::new(p.deref().clone())),
+                None => None,
+            }
         }
+    }
+
+    fn clone_from(&mut self, source: &TypeStruct) {
+        self.ty = source.ty;
+        self.name = source.name.clone();
+        self.args = source.args.clone();
+        self.parent = match source.parent {
+            Some(ref p) => Some(Box::new(p.deref().clone())),
+            None => None,
+        };
     }
 }
 
@@ -90,13 +89,13 @@ impl Display for TypeStruct {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         let parent = &self.parent;
         match parent {
-            &Some(ref p) => writeln!(f, "{}{} {}{}", p, self.ty, self.name, self.args.join(" ")),
-            &None => writeln!(f, "{} {}{}", self.ty, self.name, self.args.join(" ")),
+            &Some(ref p) => write!(f, "{}({} {}{})", p, self.ty, self.name, self.args.join(" ")),
+            &None => write!(f, "{} {}{}", self.ty, self.name, self.args.join(" ")),
         }
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 enum Type {
     Struct,
     Mod,
@@ -157,7 +156,7 @@ fn loop_over_files(path: &str, f: &mut File) {
 }
 
 fn move_to(words: &[&str], it: &mut usize, limit: &str) {
-    while (*it + 1) < words.len() && words[*it + 1] != limit {
+    while (*it + 1) < words.len() && limit.contains(words[*it + 1]) == false {
         *it += 1;
     }
 }
@@ -180,15 +179,19 @@ fn add_to_type_scope(current: &Option<TypeStruct>, e: &Option<TypeStruct>) -> Op
         &Some(ref c) => {
             match e {
                 &Some(ref t) => {
-                    let mut tmp = t.copy();
-                    tmp.parent = Some(Box::new(c.copy()));
+                    let mut tmp = t.clone();
+                    tmp.parent = Some(Box::new(c.clone()));
                     Some(tmp)
                 }
-                &None => Some(c.copy()),
+                &None => {
+                    let mut tmp = TypeStruct::empty();
+                    tmp.parent = Some(Box::new(c.clone()));
+                    Some(tmp)
+                }
             }
         },
         &None => match e {
-            &Some(ref t) => Some(t.copy()),
+            &Some(ref t) => Some(t.clone()),
             &None => None,
         }
     }
@@ -197,7 +200,7 @@ fn add_to_type_scope(current: &Option<TypeStruct>, e: &Option<TypeStruct>) -> Op
 fn type_out_scope(current: &Option<TypeStruct>) -> Option<TypeStruct> {
     match current {
         &Some(ref c) => match c.parent {
-            Some(ref p) => Some(p.copy()),
+            Some(ref p) => Some(p.deref().clone()),
             None => None,
         },
         &None => None,
@@ -257,13 +260,22 @@ fn strip_comments(path: &str, out_file: &mut File) {
             while it < event_list.len() {
                 match event_list[it] {
                     EventType::Type(ref t) => {
-                        waiting_type = Some(t.copy());
+                        if t.ty != Type::Unknown {
+                            waiting_type = Some(t.clone());
+                            //println!("current : {}", t);
+                        }
                     }
                     EventType::InScope => {
                         current = add_to_type_scope(&current, &waiting_type);
+                        /*if waiting_type.is_some() {
+                            println!("in : {}", waiting_type.unwrap());
+                        }*/
                         waiting_type = None;
                     }
                     EventType::OutScope => {
+                        /*if current.is_some() {
+                            println!("out : {}", current.clone().unwrap());
+                        }*/
                         current = type_out_scope(&current);
                         waiting_type = None;
                     }
@@ -277,10 +289,24 @@ fn strip_comments(path: &str, out_file: &mut File) {
                                 true
                             }
                             EventType::Type(ref t) => {
-                                write!(out_file, "=|{}{}", t, comments).unwrap();
                                 false
                             }
                             _ => panic!("Comments cannot be written everywhere"),
+                        } {
+                            it += 1;
+                        }
+                        while match event_list[it] {
+                            EventType::Type(ref t) => {
+                                match t.ty {
+                                    Type::Unknown => true,
+                                    _ => {
+                                        let tmp = add_to_type_scope(&current, &Some(t.clone()));
+                                        write!(out_file, "=| {}\n{}", tmp.unwrap(), comments).unwrap();
+                                        false
+                                    }
+                                }
+                            }
+                            _ => panic!("An item was expected"),
                         } {
                             it += 1;
                         }
