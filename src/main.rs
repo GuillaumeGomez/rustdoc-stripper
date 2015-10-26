@@ -249,6 +249,7 @@ fn strip_comments(path: &str, out_file: &mut File) {
                                    .replace("*/", " */")
                                    .replace("\n", " \n ")
                                    .replace("!(", " !! (")
+                                   .replace(",", ", ")
                                    .replace("(", " (");
             let b_content : Vec<&str> = b_content.split('\n').collect();
             let words : Vec<&str> = content.split(' ').filter(|s| s.len() > 0).collect();
@@ -368,7 +369,26 @@ fn strip_comments(path: &str, out_file: &mut File) {
                         while match event_list[it] {
                             EventType::Type(ref t) => {
                                 match t.ty {
-                                    Type::Unknown => true,
+                                    Type::Unknown => {
+                                        match current {
+                                            Some(ref cur) => {
+                                                if cur.ty == Type::Enum || cur.ty == Type::Struct || cur.ty == Type::Use {
+                                                    if t.name == "pub" {
+                                                        true
+                                                    } else {
+                                                        let mut copy = t.clone();
+                                                        copy.ty = Type::Variant;
+                                                        let tmp = add_to_type_scope(&current, &Some(copy));
+                                                        write!(out_file, "=| {}\n{}", tmp.unwrap(), comments).unwrap();
+                                                        false
+                                                    }
+                                                } else {
+                                                    false
+                                                }
+                                            }
+                                            None => false,
+                                        }
+                                    },
                                     _ => {
                                         let tmp = add_to_type_scope(&current, &Some(t.clone()));
                                         write!(out_file, "=| {}\n{}", tmp.unwrap(), comments).unwrap();
