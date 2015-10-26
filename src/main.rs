@@ -107,6 +107,8 @@ enum Type {
     Variant,
     Impl,
     Use,
+    Macro,
+    Trait,
     Unknown,
 }
 
@@ -122,6 +124,10 @@ impl Type {
             "type" => Type::Type,
             "impl" => Type::Impl,
             "use" => Type::Use,
+            "trait" => Type::Trait,
+            "macro" => Type::Macro,
+            "macro_rules" => Type::Macro,
+            "macro_rules!" => Type::Macro,
             _ => Type::Variant,
         }
     }
@@ -140,6 +146,8 @@ impl Display for Type {
             Type::Variant => write!(f, "variant"),
             Type::Impl => write!(f, "impl"),
             Type::Use => write!(f, "use"),
+            Type::Trait => write!(f, "trait"),
+            Type::Macro => write!(f, "macro"),
             _ => write!(f, "?"),
         }
     }
@@ -240,22 +248,26 @@ fn strip_comments(path: &str, out_file: &mut File) {
                                    .replace("/*!", "/*! ")
                                    .replace("*/", " */")
                                    .replace("\n", " \n ")
+                                   .replace("!(", " !! (")
                                    .replace("(", " (");
             let b_content : Vec<&str> = b_content.split('\n').collect();
             let words : Vec<&str> = content.split(' ').filter(|s| s.len() > 0).collect();
             let mut it = 0;
             let mut line = 0;
             let mut event_list = vec!();
+            let mut comments = 0;
 
             while it < words.len() {
                 match words[it] {
                     "///" => {
                         event_list.push(EventType::Comment(b_content[line].to_owned()));
                         move_to(&words, &mut it, "\n", &mut line);
+                        comments += 1;
                     }
                     "//!" => {
                         event_list.push(EventType::FileComment(b_content[line].to_owned()));
                         move_to(&words, &mut it, "\n", &mut line);
+                        comments += 1;
                     }
                     "/*!" => {
                         let mark = line;
@@ -264,9 +276,14 @@ fn strip_comments(path: &str, out_file: &mut File) {
                             event_list.push(EventType::FileComment(b_content[pos].to_owned()));
                         }
                         event_list.push(EventType::FileComment("*/".to_owned()));
+                        comments += 1;
                     }
-                    "struct" | "mod" | "fn" | "enum" | "const" | "static" | "type" | "use" => {
+                    "struct" | "mod" | "fn" | "enum" | "const" | "static" | "type" | "use" | "trait" | "macro_rules!" => {
                         event_list.push(EventType::Type(TypeStruct::new(Type::from(words[it]), words[it + 1])));
+                        it += 1;
+                    }
+                    "!!" => {
+                        event_list.push(EventType::Type(TypeStruct::new(Type::from("macro"), &format!("{}!{}", words[it - 1], words[it + 1]))));
                         it += 1;
                     }
                     "impl" => {
@@ -286,6 +303,9 @@ fn strip_comments(path: &str, out_file: &mut File) {
                     }
                 }
                 it += 1;
+            }
+            if comments < 1 {
+                return;
             }
             writeln!(out_file, "=! {}", path).unwrap();
             let mut current : Option<TypeStruct> = None;
