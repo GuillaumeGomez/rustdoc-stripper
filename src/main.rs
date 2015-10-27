@@ -125,9 +125,7 @@ impl Type {
             "impl" => Type::Impl,
             "use" => Type::Use,
             "trait" => Type::Trait,
-            "macro" => Type::Macro,
-            "macro_rules" => Type::Macro,
-            "macro_rules!" => Type::Macro,
+            "macro" | "macro_rules" | "macro_rules!" => Type::Macro,
             _ => Type::Variant,
         }
     }
@@ -246,6 +244,7 @@ fn strip_comments(path: &str, out_file: &mut File) {
                                    .replace("///", "/// ")
                                    .replace("//!", "//! ")
                                    .replace("/*!", "/*! ")
+                                   .replace(":", " : ")
                                    .replace("*/", " */")
                                    .replace("\n", " \n ")
                                    .replace("!(", " !! (")
