@@ -89,7 +89,7 @@ impl Display for TypeStruct {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         let parent = &self.parent;
         match parent {
-            &Some(ref p) => write!(f, "{}({} {}{})", p, self.ty, self.name, self.args.join(" ")),
+            &Some(ref p) => write!(f, "{}>{} {}{}", p, self.ty, self.name, self.args.join(" ")),
             &None => write!(f, "{} {}{}", self.ty, self.name, self.args.join(" ")),
         }
     }
@@ -435,7 +435,7 @@ fn check_path_type(path: &str, f: &mut File) {
 
 fn main() {
     println!("Starting...");
-    match fs::remove_file("comments.cmts") { _ => {} }
+    //match fs::remove_file("comments.cmts") { _ => {} }
     match OpenOptions::new().write(true).create(true).truncate(true).open("comments.cmts") {
         Ok(mut f) => {
             loop_over_files(".", &mut f);
@@ -449,7 +449,3 @@ fn main() {
         }
     }
 }
-
-// au lieu de splitter le fichier via '\n', lis le sur "une seule ligne".
-// quand tu croises un "///", tu stockes ça comme un commentaire, un "mod", comme un module, etc...
-// il faudra compter les '{' / '}' pour voir si t'es toujours danns le truc courant ou non
