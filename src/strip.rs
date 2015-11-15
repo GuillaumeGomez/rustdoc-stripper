@@ -14,142 +14,18 @@
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, Write, Read};
-use std::fmt::{Display, Formatter, Error};
+use std::process::exit;
 use std::ops::Deref;
 
-enum EventType {
-    Comment(String),
-    FileComment(String),
-    Type(TypeStruct),
-    InScope,
-    OutScope,
-}
+static MOD_COMMENT : &'static str = "=|";
+static FILE_COMMENT : &'static str = "=/";
+static FILE : &'static str = "=!";
 
-struct TypeStruct {
-    ty: Type,
-    parent: Option<Box<TypeStruct>>,
-    name: String,
-    args: Vec<String>,
-}
-
-impl TypeStruct {
-    fn new(ty: Type, name: &str) -> TypeStruct {
-        TypeStruct {
-            ty: ty,
-            name: name.to_owned(),
-            args: vec!(),
-            parent: None,
-        }
-    }
-
-    fn from_args(ty: Type, args: Vec<String>) -> TypeStruct {
-        TypeStruct {
-            ty: ty,
-            name: String::new(),
-            args: args,
-            parent: None,
-        }
-    }
-
-    fn empty() -> TypeStruct {
-        TypeStruct {
-            ty: Type::Unknown,
-            name: String::new(),
-            args: Vec::new(),
-            parent: None,
-        }
-    }
-}
-
-impl Clone for TypeStruct {
-    fn clone(&self) -> TypeStruct {
-        TypeStruct {
-            ty: self.ty,
-            name: self.name.clone(),
-            args: self.args.clone(),
-            parent: match self.parent {
-                Some(ref p) => Some(Box::new(p.deref().clone())),
-                None => None,
-            }
-        }
-    }
-
-    fn clone_from(&mut self, source: &TypeStruct) {
-        self.ty = source.ty;
-        self.name = source.name.clone();
-        self.args = source.args.clone();
-        self.parent = match source.parent {
-            Some(ref p) => Some(Box::new(p.deref().clone())),
-            None => None,
-        };
-    }
-}
-
-impl Display for TypeStruct {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        let parent = &self.parent;
-        match parent {
-            &Some(ref p) => write!(f, "{}>{} {}{}", p, self.ty, self.name, self.args.join(" ")),
-            &None => write!(f, "{} {}{}", self.ty, self.name, self.args.join(" ")),
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq)]
-enum Type {
-    Struct,
-    Mod,
-    Enum,
-    Fn,
-    Const,
-    Static,
+use types::{
+    TypeStruct,
+    EventType,
     Type,
-    Variant,
-    Impl,
-    Use,
-    Macro,
-    Trait,
-    Unknown,
-}
-
-impl Type {
-    fn from(s: &str) -> Type {
-        match s {
-            "struct" => Type::Struct,
-            "mod" => Type::Mod,
-            "enum" => Type::Enum,
-            "fn" => Type::Fn,
-            "const" => Type::Const,
-            "static" => Type::Static,
-            "type" => Type::Type,
-            "impl" => Type::Impl,
-            "use" => Type::Use,
-            "trait" => Type::Trait,
-            "macro" | "macro_rules" | "macro_rules!" => Type::Macro,
-            _ => Type::Variant,
-        }
-    }
-}
-
-impl Display for Type {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        match *self {
-            Type::Struct => write!(f, "struct"),
-            Type::Mod => write!(f, "mod"),
-            Type::Enum => write!(f, "enum"),
-            Type::Fn => write!(f, "fn"),
-            Type::Const => write!(f, "const"),
-            Type::Static => write!(f, "static"),
-            Type::Type => write!(f, "type"),
-            Type::Variant => write!(f, "variant"),
-            Type::Impl => write!(f, "impl"),
-            Type::Use => write!(f, "use"),
-            Type::Trait => write!(f, "trait"),
-            Type::Macro => write!(f, "macro"),
-            _ => write!(f, "?"),
-        }
-    }
-}
+};
 
 pub fn loop_over_files<F: Write>(path: &str, f: &mut F) {
     match fs::read_dir(path) {
@@ -234,6 +110,21 @@ fn type_out_scope(current: &Option<TypeStruct>) -> Option<TypeStruct> {
     }
 }
 
+fn get_mod<F: Write>(current: &Option<TypeStruct>, out_file: &mut F) -> bool {
+    match *current {
+        Some(ref t) => {
+            if t.ty != Type::Mod {
+                println!("Mod/File comments cannot be put here!");
+                false
+            } else {
+                writeln!(out_file, "{} {}", MOD_COMMENT, t).unwrap();
+                true
+            }
+        }
+        None => true,
+    }
+}
+
 fn strip_comments<F: Write>(path: &str, out_file: &mut F) {
     match File::open(path) {
         Ok(mut f) => {
@@ -311,7 +202,7 @@ fn strip_comments<F: Write>(path: &str, out_file: &mut F) {
             if comments < 1 {
                 return;
             }
-            writeln!(out_file, "=! {}", path).unwrap();
+            writeln!(out_file, "{} {}", FILE, path).unwrap();
             let mut current : Option<TypeStruct> = None;
             let mut waiting_type : Option<TypeStruct> = None;
 
@@ -339,12 +230,15 @@ fn strip_comments<F: Write>(path: &str, out_file: &mut F) {
                         waiting_type = None;
                     }
                     EventType::FileComment(ref c) => {
-                        let mut comments = format!("=/ {}\n", c);
-
+                        // first, we need to find if it belongs to a mod
+                        if get_mod(&current, out_file) == false {
+                            exit(1);
+                        }
                         it += 1;
+                        let mut comments = format!("{} {}\n", FILE_COMMENT, c);
                         while match event_list[it] {
                             EventType::FileComment(ref c) => {
-                                comments.push_str(&format!("=/ {}\n", c));
+                                comments.push_str(&format!("{} {}\n", FILE_COMMENT, c));
                                 true
                             }
                             _ => false,
@@ -365,7 +259,7 @@ fn strip_comments<F: Write>(path: &str, out_file: &mut F) {
                             EventType::Type(_) => {
                                 false
                             }
-                            _ => panic!("Comments cannot be written everywhere"),
+                            _ => panic!("Doc comments cannot be written everywhere"),
                         } {
                             it += 1;
                         }
@@ -382,11 +276,15 @@ fn strip_comments<F: Write>(path: &str, out_file: &mut F) {
                                                         let mut copy = t.clone();
                                                         copy.ty = Type::Variant;
                                                         let tmp = add_to_type_scope(&current, &Some(copy));
-                                                        write!(out_file, "=| {}\n{}", tmp.unwrap(), comments).unwrap();
+                                                        write!(out_file, "{} {}\n{}", MOD_COMMENT, tmp.unwrap(), comments).unwrap();
                                                         false
                                                     }
                                                 } else {
-                                                    false
+                                                    if t.name == "pub" {
+                                                        true
+                                                    } else {
+                                                        false
+                                                    }
                                                 }
                                             }
                                             None => false,
@@ -394,7 +292,7 @@ fn strip_comments<F: Write>(path: &str, out_file: &mut F) {
                                     },
                                     _ => {
                                         let tmp = add_to_type_scope(&current, &Some(t.clone()));
-                                        write!(out_file, "=| {}\n{}", tmp.unwrap(), comments).unwrap();
+                                        write!(out_file, "{} {}\n{}", MOD_COMMENT, tmp.unwrap(), comments).unwrap();
                                         false
                                     }
                                 }
@@ -408,7 +306,7 @@ fn strip_comments<F: Write>(path: &str, out_file: &mut F) {
                 }
                 it += 1;
             }
-            // we now remove comments from original file
+            // we now remove doc comments from original file
             remove_comments(path, &to_remove, &mut b_content);
         }
         Err(e) => {

@@ -16,7 +16,9 @@ use std::{env, io};
 use std::fs::OpenOptions;
 use strip::loop_over_files;
 
+mod regenerate;
 mod strip;
+mod types;
 
 struct ExecOptions {
     stdout_output: bool,
@@ -117,7 +119,7 @@ fn main() {
         let tmp = io::stdout();
 
         loop_over_files(".", &mut tmp.lock());
-    } else {
+    } else if args.strip == true || (args.strip == false && args.regenerate == false) {
         match OpenOptions::new().write(true).create(true).truncate(true).open("comments.cmts") {
             Ok(mut f) => {
                 loop_over_files(".", &mut f);
@@ -130,6 +132,9 @@ fn main() {
                 return;
             }
         }
+    } else {
+        println!("Not implemented yet");
+        return;
     }
     println!("Done !");
 }
