@@ -15,6 +15,10 @@
 use std::fmt::{Display, Formatter, Error};
 use std::ops::Deref;
 
+pub static MOD_COMMENT : &'static str = "=|";
+pub static FILE_COMMENT : &'static str = "=/";
+pub static FILE : &'static str = "=!";
+
 pub enum EventType {
     Comment(String),
     FileComment(String),

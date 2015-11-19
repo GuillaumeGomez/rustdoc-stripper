@@ -17,14 +17,13 @@ use std::io::{BufRead, Write, Read};
 use std::process::exit;
 use std::ops::Deref;
 
-static MOD_COMMENT : &'static str = "=|";
-static FILE_COMMENT : &'static str = "=/";
-static FILE : &'static str = "=!";
-
 use types::{
     TypeStruct,
     EventType,
     Type,
+    MOD_COMMENT,
+    FILE_COMMENT,
+    FILE,
 };
 
 pub fn loop_over_files<F: Write>(path: &str, f: &mut F) {
@@ -192,6 +191,11 @@ fn strip_comments<F: Write>(path: &str, out_file: &mut F) {
                     }
                     "\n" => {
                         line += 1;
+                    }
+                    s if s.starts_with("#[") || s.starts_with("#![") => {
+                        while words[it + 1] != "\n" {
+                            it += 1;
+                        }
                     }
                     _ => {
                         event_list.push(EventType::Type(TypeStruct::new(Type::Unknown, words[it])));

@@ -14,22 +14,59 @@
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader};
+use std::collections::HashMap;
+
+use types::{
+    TypeStruct,
+    EventType,
+    Type,
+    MOD_COMMENT,
+    FILE_COMMENT,
+    FILE,
+};
+
+/*fn parse_mod_line(line: &str) -> EventType {
+    let line = line.replace(MOD_COMMENT, "");
+    let parts = line.split("§").collect();
+
+    for part in parts {
+
+    }
+}*/
 
 pub fn regenerate_doc_comments() {
     // we start by storing files info
     let mut f = match OpenOptions::new().read(true).open("comments.cmts") {
-        Ok(f) => {
-            f
-        }
+        Ok(f) => f,
         Err(e) => {
             println!("An error occured while trying to open '{}': {}", "comments.cmts", e);
             return;
         }
     };
-    let mut reader = BufReader::new(f);
+    /*let mut reader = BufReader::new(f);
     let mut lines : Vec<String> = vec!();
+    let mut current_file = String::new();
+    let mut infos = HashMap::new();
+    let mut current_infos = vec!();
 
-    for line in reader.lines() {
+    for tmp_line in reader.lines() {
+        let line = tmp_line.unwrap();
+        if line.starts_with(FILE) {
+            if current_file.len() > 0 && current_infos.len() > 0 {
+                infos.insert(current_file, current_infos.clone());
+                current_infos = vec!();
+            }
+            current_file = line.to_owned();
+        } else if line.starts_with(MOD_COMMENT) {
+            parse_mod_line(&line);
+            // we read as long as we have (mod) comment
+        } else if line.starts_with(FILE_COMMENT) {
+            // we get after head comment
+        }
         lines.push(line.unwrap());
     }
+    if current_file.len() > 0 && current_infos.len() > 0 {
+        infos.insert(current_file, current_infos.clone());
+    }
+    run_over_files(&infos);*/
 }
