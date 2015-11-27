@@ -76,7 +76,7 @@ fn get_impl(words: &[&str], it: &mut usize, line: &mut usize) -> Vec<String> {
     v
 }
 
-fn add_to_type_scope(current: &Option<TypeStruct>, e: &Option<TypeStruct>) -> Option<TypeStruct> {
+pub fn add_to_type_scope(current: &Option<TypeStruct>, e: &Option<TypeStruct>) -> Option<TypeStruct> {
     match current {
         &Some(ref c) => {
             match e {
@@ -166,8 +166,12 @@ fn strip_comments<F: Write>(path: &str, out_file: &mut F) {
                         let mark = line;
                         move_until(&words, &mut it, "*/", &mut line);
                         for pos in mark..line {
-                            to_remove.push(mark + pos);
+                            to_remove.push(pos);
                             event_list.push(EventType::FileComment(b_content[pos].to_owned()));
+                        }
+                        to_remove.push(line);
+                        if line + 1 < b_content.len() && b_content[line + 1].len() < 1 {
+                            to_remove.push(line + 1);
                         }
                         event_list.push(EventType::FileComment("*/".to_owned()));
                         comments += 1;
@@ -320,7 +324,8 @@ fn strip_comments<F: Write>(path: &str, out_file: &mut F) {
 }
 
 fn remove_comments(path: &str, to_remove: &[usize], o_content: &mut Vec<&str>) {
-    match OpenOptions::new().write(true).create(true).truncate(true).open(format!("{}_", path)) {
+    //match OpenOptions::new().write(true).create(true).truncate(true).open(format!("{}_", path)) {
+    match OpenOptions::new().write(true).create(true).truncate(true).open(path) {
         Ok(mut f) => {
             let mut decal = 0;
 
@@ -331,7 +336,7 @@ fn remove_comments(path: &str, to_remove: &[usize], o_content: &mut Vec<&str>) {
             write!(f, "{}", o_content.join("\n")).unwrap();
         }
         Err(e) => {
-            println!("Cannot open {}_: {}", path, e);
+            println!("Cannot open {}: {}", path, e);
         }
     }
 }
