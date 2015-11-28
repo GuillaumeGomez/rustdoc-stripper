@@ -12,12 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cmp::PartialEq;
 use std::fmt::{Display, Formatter, Error};
 use std::ops::Deref;
 
-pub static MOD_COMMENT : &'static str = "=|";
-pub static FILE_COMMENT : &'static str = "=/";
-pub static FILE : &'static str = "=!";
+use std::fmt::Debug;
+
+pub static MOD_COMMENT : &'static str = "=| ";
+pub static FILE_COMMENT : &'static str = "=/ ";
+pub static FILE : &'static str = "=! ";
+
+pub struct ParseResult {
+    pub event_list: Vec<EventInfo>,
+    pub comment_lines: Vec<usize>,
+    pub original_content : Vec<String>,
+}
+
+pub struct EventInfo {
+    pub line: usize,
+    pub event: EventType,
+}
+
+impl EventInfo {
+    pub fn new(line: usize, event: EventType) -> EventInfo {
+        EventInfo {
+            line: line,
+            event: event,
+        }
+    }
+}
 
 pub enum EventType {
     Comment(String),
@@ -32,6 +55,12 @@ pub struct TypeStruct {
     pub parent: Option<Box<TypeStruct>>,
     pub name: String,
     pub args: Vec<String>,
+}
+
+impl Debug for TypeStruct {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        writeln!(fmt, "{}:{}", self.name, self.ty)
+    }
 }
 
 impl TypeStruct {
@@ -60,6 +89,19 @@ impl TypeStruct {
             args: Vec::new(),
             parent: None,
         }
+    }
+}
+
+impl PartialEq for TypeStruct {
+    fn eq(&self, other: &TypeStruct) -> bool {
+        self.ty == other.ty &&
+        self.name == other.name &&
+        self.args == other.args &&
+        self.parent == other.parent
+    }
+
+    fn ne(&self, other: &TypeStruct) -> bool {
+        !self.eq(other)
     }
 }
 

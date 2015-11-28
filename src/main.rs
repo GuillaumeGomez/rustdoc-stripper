@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use regenerate::regenerate_doc_comments;
 use std::{env, io};
 use std::fs::OpenOptions;
-use strip::loop_over_files;
+use strip::strip_comments;
+use utils::loop_over_files;
 
 mod regenerate;
 mod strip;
 mod types;
+mod utils;
 
 struct ExecOptions {
     stdout_output: bool,
@@ -92,7 +95,7 @@ fn main() {
                 }
                 for c in (&s[1..]).chars() {
                     match c {
-                        's' | 'c' => {
+                        's' | 'g' => {
                             if !check_options(&mut args, c) {
                                 return;
                             }
@@ -112,17 +115,17 @@ fn main() {
                 }
             }
         }
-        println!("{}", argument);
     }
+    // TODO: if there is no option but a comments.cmts is present, we should ask for user confirmation
     println!("Starting...");
     if args.stdout_output {
         let tmp = io::stdout();
 
-        loop_over_files(".", &mut tmp.lock());
+        loop_over_files(".", &mut tmp.lock(), &strip_comments);
     } else if args.strip == true || (args.strip == false && args.regenerate == false) {
         match OpenOptions::new().write(true).create(true).truncate(true).open("comments.cmts") {
             Ok(mut f) => {
-                loop_over_files(".", &mut f);
+                loop_over_files(".", &mut f, &strip_comments);
                 /*for com_entry in comments {
                     write!(f, "{}", com_entry).unwrap();
                 }*/
@@ -133,7 +136,7 @@ fn main() {
             }
         }
     } else {
-        println!("Not implemented yet");
+        regenerate_doc_comments();
         return;
     }
     println!("Done !");
