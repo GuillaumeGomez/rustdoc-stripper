@@ -29,7 +29,7 @@ use types::{
 
 fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                           to_find: &Option<TypeStruct>,
-                          line: usize,
+                          mut line: usize,
                           decal: &mut usize,
                           original_content: &mut Vec<String>) -> Option<usize> {
     let mut pos = 0;
@@ -39,8 +39,11 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
             (&Some(ref a), &Some(ref b)) => a == b,
             _ => false,
         } {
+            while line > 0 && (line + *decal) > 0 &&
+                  original_content[line + *decal - 1].trim().starts_with("#") {
+                line -= 1;
+            }
             for comment in &elements[pos].1 {
-                println!("insert: {}", comment);
                 original_content.insert(line + *decal, comment.clone());
                 *decal += 1;
             }
@@ -63,9 +66,7 @@ fn regenerate_comments(path: &str, infos: &mut HashMap<String, Vec<(Option<TypeS
 
             // first, we need to put back file comments
             for entry in elements.iter() {
-                println!("{:?}", entry);
                 if entry.0.is_none() {
-                    println!("Here !");
                     let mut it = 0;
 
                     while it < parse_result.original_content.len() {
@@ -79,7 +80,6 @@ fn regenerate_comments(path: &str, infos: &mut HashMap<String, Vec<(Option<TypeS
                     }
                     if it < parse_result.original_content.len() {
                         for line in &entry.1 {
-                            println!("insert: {}", line);
                             parse_result.original_content.insert(it, line.clone());
                             decal += 1;
                             it += 1;

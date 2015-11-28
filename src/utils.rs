@@ -48,3 +48,17 @@ fn check_path_type<T>(path: &str, data: &mut T, func: &Fn(&str, &mut T)) {
         }
     }
 }
+
+pub fn join(s: &[String], join_part: &str) -> String {
+    let mut ret = String::new();
+    let mut it = 0;
+
+    while it < s.len() {
+        ret.push_str(&s[it]);
+        it += 1;
+        if it < s.len() {
+            ret.push_str(join_part);
+        }
+    }
+    ret
+}

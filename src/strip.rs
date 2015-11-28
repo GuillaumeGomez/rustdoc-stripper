@@ -16,6 +16,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead, Write, Read};
 use std::process::exit;
 use std::ops::Deref;
+use utils::join;
 
 use types::{
     EventInfo,
@@ -124,6 +125,7 @@ pub fn build_event_list(path: &str) -> io::Result<ParseResult> {
                                    .replace("//!", "//! ")
                                    .replace("/*!", "/*! ")
                                    .replace(":", " : ")
+                                   .replace(" :  : ", "::")
                                    .replace("*/", " */")
                                    .replace("\n", " \n ")
                                    .replace("!(", " !! (")
@@ -180,8 +182,9 @@ pub fn build_event_list(path: &str) -> io::Result<ParseResult> {
                         it += 1;
                     }
                     "impl" => {
+                        //println!("impl {:?}", join(&get_impl(&words, &mut it, &mut line), " "));
                         event_list.push(EventInfo::new(line,
-                            EventType::Type(TypeStruct::from_args(Type::Impl, get_impl(&words, &mut it, &mut line)))));
+                            EventType::Type(TypeStruct::new(Type::Impl, &join(&get_impl(&words, &mut it, &mut line), " ")))));
                     }
                     "{" => {
                         event_list.push(EventInfo::new(line, EventType::InScope));

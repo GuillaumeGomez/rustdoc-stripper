@@ -42,12 +42,30 @@ impl EventInfo {
     }
 }
 
+impl Debug for EventInfo {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        match self.event {
+            EventType::Type(ref t) => { writeln!(fmt, "{:?}->{:?}", self.line, t) }
+            _ => Ok(())
+        }
+    }
+}
+
 pub enum EventType {
     Comment(String),
     FileComment(String),
     Type(TypeStruct),
     InScope,
     OutScope,
+}
+
+impl Debug for EventType {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        match self {
+            &EventType::Type(ref t) => writeln!(fmt, "{}", t),
+            _ => Ok(())
+        }
+    }
 }
 
 pub struct TypeStruct {
@@ -59,7 +77,10 @@ pub struct TypeStruct {
 
 impl Debug for TypeStruct {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        writeln!(fmt, "{}:{}", self.name, self.ty)
+        match self.parent {
+            Some(ref p) => write!(fmt, "{}|{}:{}:[{:?}]", p, self.name, self.ty, self.args),
+            None => write!(fmt, "{}:{}:[{:?}]", self.name, self.ty, self.args),
+        }
     }
 }
 
