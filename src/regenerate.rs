@@ -39,12 +39,23 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
             (&Some(ref a), &Some(ref b)) => a == b,
             _ => false,
         } {
-            while line > 0 && (line + *decal) > 0 &&
-                  original_content[line + *decal - 1].trim().starts_with("#") {
-                line -= 1;
+            let mut file_comment = false;
+
+            if elements[pos].1.len() > 0 && elements[pos].1[0].starts_with(FILE_COMMENT) {
+                line += 1;
+                file_comment = true;
+            } else {
+                while line > 0 && (line + *decal) > 0 &&
+                      original_content[line + *decal - 1].trim().starts_with("#") {
+                    line -= 1;
+                }
             }
             for comment in &elements[pos].1 {
-                original_content.insert(line + *decal, comment.clone());
+                if file_comment {
+                    original_content.insert(line + *decal, comment[FILE_COMMENT.len()..].to_owned());
+                } else {
+                    original_content.insert(line + *decal, comment.clone());
+                }
                 *decal += 1;
             }
             return Some(pos);
@@ -119,9 +130,9 @@ fn regenerate_comments(path: &str, infos: &mut HashMap<String, Vec<(Option<TypeS
                                         let cc = strip::add_to_type_scope(&current, &tmp);
 
                                         match get_corresponding_type(&elements, &cc,
-                                                         parse_result.event_list[it].line,
-                                                         &mut decal,
-                                                         &mut parse_result.original_content) {
+                                                                     parse_result.event_list[it].line,
+                                                                     &mut decal,
+                                                                     &mut parse_result.original_content) {
                                             Some(l) => { elements.remove(l); },
                                             None => {}
                                         }
@@ -134,6 +145,13 @@ fn regenerate_comments(path: &str, infos: &mut HashMap<String, Vec<(Option<TypeS
                     EventType::InScope => {
                         current = strip::add_to_type_scope(&current, &waiting_type);
                         waiting_type = None;
+                        match get_corresponding_type(&elements, &current,
+                                                     parse_result.event_list[it].line,
+                                                     &mut decal,
+                                                     &mut parse_result.original_content) {
+                            Some(l) => { elements.remove(l); },
+                            None => {}
+                        };
                     }
                     EventType::OutScope => {
                         current = strip::type_out_scope(&current);
@@ -152,13 +170,12 @@ fn regenerate_comments(path: &str, infos: &mut HashMap<String, Vec<(Option<TypeS
 }
 
 fn rewrite_file(path: &str, o_content: &[String]) {
-    //match OpenOptions::new().write(true).create(true).truncate(true).open(format!("{}_", path)) {
-    match OpenOptions::new().write(true).create(true).truncate(true).open(format!("{}_", path)) {
+    match OpenOptions::new().write(true).create(true).truncate(true).open(path) {
         Ok(mut f) => {
             write!(f, "{}", o_content.join("\n")).unwrap();
         }
         Err(e) => {
-            println!("Cannot open '{}_': {}", path, e);
+            println!("Cannot open '{}': {}", path, e);
         }
     }
 }
@@ -215,7 +232,6 @@ pub fn regenerate_doc_comments() {
             }
             while it < lines.len() {
                 if lines[it].starts_with(MOD_COMMENT) ||
-                   lines[it].starts_with(FILE_COMMENT) ||
                    lines[it].starts_with(FILE) {
                     break;
                 }
