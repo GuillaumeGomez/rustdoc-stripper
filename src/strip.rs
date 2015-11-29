@@ -173,7 +173,17 @@ pub fn build_event_list(path: &str) -> io::Result<ParseResult> {
                             event_list.push(EventInfo::new(line, EventType::FileComment("".to_owned())));
                         }
                     }
-                    "struct" | "mod" | "fn" | "enum" | "const" | "static" | "type" | "use" | "trait" | "macro_rules!" => {
+                    "use" | "mod" => {
+                        let mut name = words[it + 1].to_owned();
+                        let ty = words[it];
+
+                        if line + 1 < b_content.len() && b_content[line].ends_with("::{") {
+                            move_to(&words, &mut it, "\n", &mut line);
+                            name.push_str(&format!("{}", b_content[line + 1].trim()));
+                        }
+                        event_list.push(EventInfo::new(line, EventType::Type(TypeStruct::new(Type::from(ty), &name))));
+                    }
+                    "struct" | "fn" | "enum" | "const" | "static" | "type" | "trait" | "macro_rules!" => {
                         event_list.push(EventInfo::new(line, EventType::Type(TypeStruct::new(Type::from(words[it]), words[it + 1]))));
                         it += 1;
                     }

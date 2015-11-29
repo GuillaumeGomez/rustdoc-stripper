@@ -16,7 +16,7 @@ use std::fs::{OpenOptions, remove_file};
 use std::io::{BufRead, BufReader, Write};
 use std::collections::HashMap;
 use strip;
-use utils::loop_over_files;
+use utils::{join, loop_over_files};
 
 use types::{
     TypeStruct,
@@ -228,12 +228,23 @@ fn save_remainings(infos: &HashMap<String, Vec<(Option<TypeStruct>, Vec<String>)
         return;
     }
     match OpenOptions::new().write(true).create(true).truncate(true).open(OUTPUT_COMMENT_FILE) {
-        Ok(out_file) => {
+        Ok(mut out_file) => {
             println!("Some comments couldn't have been regenerated to the files. Saving them back to '{}'.",
                      OUTPUT_COMMENT_FILE);
-            /*for (key, content) in infos {
-                ;
-            }*/
+            for (key, content) in infos {
+                if content.len() < 1 {
+                    continue;
+                }
+                writeln!(out_file, "{}{}", FILE_COMMENT, key);
+                for line in content {
+                    match line.0 {
+                        Some(ref d) => {
+                            writeln!(out_file, "{}{}\n{}", MOD_COMMENT, d, join(&line.1, "\n"));
+                        }
+                        None => {}
+                    }
+                }
+            }
             println!("Not implemented yet.");
         }
         Err(e) => {
