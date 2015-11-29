@@ -258,11 +258,15 @@ pub fn strip_comments<F: Write>(path: &str, out_file: &mut F) {
                             it += 1;
                         }
                         write!(out_file, "{}", comments).unwrap();
+                        continue;
                     }
                     EventType::Comment(ref c) => {
                         let mut comments = format!("{}\n", c);
 
                         it += 1;
+                        if it >= parse_result.event_list.len() {
+                            continue;
+                        }
                         while match parse_result.event_list[it].event {
                             EventType::Comment(ref c) => {
                                 comments.push_str(&format!("{}\n", c));
@@ -313,7 +317,7 @@ pub fn strip_comments<F: Write>(path: &str, out_file: &mut F) {
                         } {
                             it += 1;
                         }
-                        it -= 1;
+                        continue;
                     }
                 }
                 it += 1;
@@ -328,7 +332,6 @@ pub fn strip_comments<F: Write>(path: &str, out_file: &mut F) {
 }
 
 fn remove_comments(path: &str, to_remove: &[usize], mut o_content: Vec<String>) {
-    //match OpenOptions::new().write(true).create(true).truncate(true).open(format!("{}_", path)) {
     match OpenOptions::new().write(true).create(true).truncate(true).open(path) {
         Ok(mut f) => {
             let mut decal = 0;

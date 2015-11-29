@@ -36,7 +36,26 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
 
     while pos < elements.len() {
         if match (&elements[pos].0, to_find) {
-            (&Some(ref a), &Some(ref b)) => a == b,
+            (&Some(ref a), &Some(ref b)) => {
+                let ret = a == b;
+
+                // to detect variants
+                if !ret && b.ty == Type::Unknown && b.parent.is_some() && a.parent.is_some() && a.parent == b.parent {
+                    if match b.parent {
+                        Some(ref p) => p.ty == Type::Struct || p.ty == Type::Enum || p.ty == Type::Use,
+                        None => false,
+                    } {
+                        let mut tmp = b.clone();
+
+                        tmp.ty = Type::Variant;
+                        a == &tmp
+                    } else {
+                        false
+                    }
+                } else {
+                    ret
+                }
+            },
             _ => false,
         } {
             let mut file_comment = false;
@@ -75,7 +94,7 @@ fn regenerate_comments(path: &str, infos: &mut HashMap<String, Vec<(Option<TypeS
             let mut position = 0;
             let mut decal = 0;
 
-            // first, we need to put back file comments
+            // first, we need to put back file comment
             for entry in elements.iter() {
                 if entry.0.is_none() {
                     let mut it = 0;
