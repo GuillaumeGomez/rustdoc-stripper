@@ -94,14 +94,14 @@ impl TypeStruct {
         }
     }
 
-    pub fn from_args(ty: Type, args: Vec<String>) -> TypeStruct {
+    /*pub fn from_args(ty: Type, args: Vec<String>) -> TypeStruct {
         TypeStruct {
             ty: ty,
             name: String::new(),
             args: args,
             parent: None,
         }
-    }
+    }*/
 
     pub fn empty() -> TypeStruct {
         TypeStruct {

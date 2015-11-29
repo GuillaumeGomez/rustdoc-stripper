@@ -182,7 +182,6 @@ pub fn build_event_list(path: &str) -> io::Result<ParseResult> {
                         it += 1;
                     }
                     "impl" => {
-                        //println!("impl {:?}", join(&get_impl(&words, &mut it, &mut line), " "));
                         event_list.push(EventInfo::new(line,
                             EventType::Type(TypeStruct::new(Type::Impl, &join(&get_impl(&words, &mut it, &mut line), " ")))));
                     }
@@ -264,10 +263,8 @@ pub fn strip_comments<F: Write>(path: &str, out_file: &mut F) {
                         let mut comments = format!("{}\n", c);
 
                         it += 1;
-                        if it >= parse_result.event_list.len() {
-                            continue;
-                        }
-                        while match parse_result.event_list[it].event {
+                        while it < parse_result.event_list.len() &&
+                              match parse_result.event_list[it].event {
                             EventType::Comment(ref c) => {
                                 comments.push_str(&format!("{}\n", c));
                                 true
@@ -278,6 +275,9 @@ pub fn strip_comments<F: Write>(path: &str, out_file: &mut F) {
                             _ => panic!("Doc comments cannot be written everywhere"),
                         } {
                             it += 1;
+                        }
+                        if it >= parse_result.event_list.len() {
+                            continue;
                         }
                         while match parse_result.event_list[it].event {
                             EventType::Type(ref t) => {
@@ -303,7 +303,13 @@ pub fn strip_comments<F: Write>(path: &str, out_file: &mut F) {
                                                     }
                                                 }
                                             }
-                                            None => false,
+                                            None => {
+                                                if t.name == "pub" {
+                                                    true
+                                                } else {
+                                                    false
+                                                }
+                                            },
                                         }
                                     },
                                     _ => {
