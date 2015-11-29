@@ -18,9 +18,11 @@ use std::ops::Deref;
 
 use std::fmt::Debug;
 
-pub static MOD_COMMENT : &'static str = "=| ";
-pub static FILE_COMMENT : &'static str = "=/ ";
-pub static FILE : &'static str = "=! ";
+pub const MOD_COMMENT : &'static str = "=| ";
+pub const FILE_COMMENT : &'static str = "=/ ";
+pub const FILE : &'static str = "=! ";
+
+pub const OUTPUT_COMMENT_FILE : &'static str = "comments.cmts";
 
 pub struct ParseResult {
     pub event_list: Vec<EventInfo>,

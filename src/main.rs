@@ -14,8 +14,11 @@
 
 use regenerate::regenerate_doc_comments;
 use std::{env, io};
+use std::io::{BufRead, Write};
 use std::fs::OpenOptions;
+use std::path::Path;
 use strip::strip_comments;
+use types::OUTPUT_COMMENT_FILE;
 use utils::loop_over_files;
 
 mod regenerate;
@@ -55,6 +58,39 @@ fn print_help() {
 
 By default, rustdoc is run with -s option:
 ./rustdoc-stripper -s"#);
+}
+
+fn ask_confirmation() -> bool {
+    let r = io::stdin();
+    let mut reader = r.lock();
+    let mut line = String::new();
+    let stdout = io::stdout();
+    let mut stdo = stdout.lock();
+
+    print!(r##"A file '{}' already exists. If you want to run rustdoc-stripper anyway, it'll erase the file
+and its data. Which means that if your files don't have rustdoc comments anymore, you'll loose them.
+Do you want to continue ? (y/n) "##, OUTPUT_COMMENT_FILE);
+    stdo.flush();
+
+    match reader.read_line(&mut line) {
+        Ok(_) => {
+            line = line.trim().to_owned();
+            if line != "y" && line != "Y" {
+                if line == "n" || line == "N" {
+                    println!("Aborting...");
+                } else {
+                    println!("Unknown answer: '{}'.\nAborting...", line);
+                }
+                false
+            } else {
+                true
+            }
+        }
+        Err(e) => {
+            println!("An error occured: {}.\nAborting...", e);
+            false
+        }
+    }
 }
 
 fn main() {
@@ -116,26 +152,38 @@ fn main() {
             }
         }
     }
-    // TODO: if there is no option but a comments.cmts is present, we should ask for user confirmation
-    println!("Starting...");
-    if args.stdout_output {
-        let tmp = io::stdout();
 
-        loop_over_files(".", &mut tmp.lock(), &strip_comments);
-    } else if args.strip == true || (args.strip == false && args.regenerate == false) {
-        match OpenOptions::new().write(true).create(true).truncate(true).open("comments.cmts") {
-            Ok(mut f) => {
-                loop_over_files(".", &mut f, &strip_comments);
-                /*for com_entry in comments {
-                    write!(f, "{}", com_entry).unwrap();
-                }*/
-            }
-            Err(e) => {
-                println!("Error while opening \"{}\": {}", "comments.cmts", e);
+    if args.strip == true || (args.strip == false && args.regenerate == false) {
+        let comments_path = Path::new(OUTPUT_COMMENT_FILE);
+
+        if comments_path.exists() {
+            if comments_path.is_file() {
+                if !ask_confirmation() {
+                    return;
+                }
+            } else {
+                println!("An element called '{}' already exist. Aborting...", OUTPUT_COMMENT_FILE);
                 return;
             }
         }
+        println!("Starting stripping...");
+        if args.stdout_output {
+            let tmp = io::stdout();
+
+            loop_over_files(".", &mut tmp.lock(), &strip_comments);
+        } else {
+            match OpenOptions::new().write(true).create(true).truncate(true).open(OUTPUT_COMMENT_FILE) {
+                Ok(mut f) => {
+                    loop_over_files(".", &mut f, &strip_comments);
+                }
+                Err(e) => {
+                    println!("Error while opening \"{}\": {}", OUTPUT_COMMENT_FILE, e);
+                    return;
+                }
+            }
+        }
     } else {
+        println!("Starting regeneration...");
         regenerate_doc_comments();
         return;
     }

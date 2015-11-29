@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs::OpenOptions;
+use std::fs::{OpenOptions, remove_file};
 use std::io::{BufRead, BufReader, Write};
 use std::collections::HashMap;
 use strip;
@@ -25,6 +25,7 @@ use types::{
     MOD_COMMENT,
     FILE_COMMENT,
     FILE,
+    OUTPUT_COMMENT_FILE,
 };
 
 fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
@@ -214,12 +215,40 @@ fn parse_mod_line(line: &str) -> Option<TypeStruct> {
     current
 }
 
+fn save_remainings(infos: &HashMap<String, Vec<(Option<TypeStruct>, Vec<String>)>>) {
+    let mut remainings = 0;
+
+    for (_, content) in infos {
+        if content.len() > 0 {
+            remainings += 1;
+        }
+    }
+    if remainings < 1 {
+        remove_file(OUTPUT_COMMENT_FILE);
+        return;
+    }
+    match OpenOptions::new().write(true).create(true).truncate(true).open(OUTPUT_COMMENT_FILE) {
+        Ok(out_file) => {
+            println!("Some comments couldn't have been regenerated to the files. Saving them back to '{}'.",
+                     OUTPUT_COMMENT_FILE);
+            /*for (key, content) in infos {
+                ;
+            }*/
+            println!("Not implemented yet.");
+        }
+        Err(e) => {
+            println!("An error occured while trying to open '{}': {}", OUTPUT_COMMENT_FILE, e);
+            return;
+        }
+    }
+}
+
 pub fn regenerate_doc_comments() {
     // we start by storing files info
-    let f = match OpenOptions::new().read(true).open("comments.cmts") {
+    let f = match OpenOptions::new().read(true).open(OUTPUT_COMMENT_FILE) {
         Ok(f) => f,
         Err(e) => {
-            println!("An error occured while trying to open '{}': {}", "comments.cmts", e);
+            println!("An error occured while trying to open '{}': {}", OUTPUT_COMMENT_FILE, e);
             return;
         }
     };
@@ -274,5 +303,6 @@ pub fn regenerate_doc_comments() {
         infos.insert(current_file, current_infos.clone());
     }
     loop_over_files(".", &mut infos, &regenerate_comments);
+    save_remainings(&infos);
     // TODO: rewrite comments.cmts with remaining infos in regenerate_comments
 }

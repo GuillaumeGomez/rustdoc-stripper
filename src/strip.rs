@@ -27,6 +27,7 @@ use types::{
     MOD_COMMENT,
     FILE_COMMENT,
     FILE,
+    OUTPUT_COMMENT_FILE,
 };
 
 fn move_to(words: &[&str], it: &mut usize, limit: &str, line: &mut usize) {
