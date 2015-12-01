@@ -17,8 +17,16 @@ use std::fs;
 pub fn loop_over_files<T>(path: &str, data: &mut T, func: &Fn(&str, &mut T)) {
     match fs::read_dir(path) {
         Ok(it) => {
+            let mut entries = vec!();
+
             for entry in it {
-                check_path_type(entry.unwrap().path().to_str().unwrap(), data, func);
+                let path = entry.unwrap().path().to_str().unwrap().to_owned();
+
+                entries.push(path.clone());
+            }
+            entries.sort();
+            for entry in entries {
+                check_path_type(&entry, data, func);
             }
         }
         Err(e) => {
