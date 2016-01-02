@@ -49,15 +49,23 @@ fn check_options(args: &mut ExecOptions, to_change: char) -> bool {
 
 fn print_help() {
     println!(r#"Available options for rustdoc-stripper:
-    -h | --help          : Displays this help
-    -s | --strip         : Strips the current folder files and create a file
-                           with rustdoc information (comments.cmts by default)
-    -g | --regenerate    : Recreate files with rustdoc comments from reading
-                           rustdoc information file (comments.cmts by default)
-    -n | --no-file-output: Display rustdoc information directly on stdout
+    -h | --help             : Displays this help
+    -s | --strip            : Strips the specified folder's files and create a file
+                              with rustdoc information (comments.cmts by default)
+    -g | --regenerate       : Recreate files with rustdoc comments from reading
+                              rustdoc information file (comments.cmts by default)
+    -n | --no-file-output   : Display rustdoc information directly on stdout
+    -i | --ignore [filename]: Ignore the specified file, can be repeated as much
+                              as needed, only used when stripping files, ignored
+                              otherwise
+    -d | --dir [directory]  : Specify a directory path to work on, optional
+    -v | --verbose          : Activate verbose mode
+    -f | --force            : Remove confirmation demands
 
 By default, rustdoc is run with -s option:
-./rustdoc-stripper -s"#);
+./rustdoc-stripper -s
+
+IMPORTANT: Only files ending with '.rs' will be stripped/regenerated."#);
 }
 
 fn ask_confirmation() -> bool {
@@ -100,10 +108,26 @@ fn main() {
         regenerate: false,
     };
     let mut first = true;
+    let mut wait_filename = false;
+    let mut wait_directory = false;
+    let mut files_to_ignore = vec!();
+    let mut directory = ".".to_owned();
+    let mut verbose = false;
+    let mut force = false;
 
     for argument in env::args() {
         if first {
             first = false;
+            continue;
+        }
+        if wait_filename {
+            files_to_ignore.push(argument.clone());
+            wait_filename = false;
+            continue;
+        }
+        if wait_directory {
+            directory = argument.clone();
+            wait_directory = false;
             continue;
         }
         match &*argument {
@@ -116,6 +140,12 @@ fn main() {
                     return;
                 }
             }
+            "-i" | "--ignore" => {
+                wait_filename = true;
+            }
+            "-d" | "--dir" => {
+                wait_directory = true;
+            }
             "-g" | "--regenerate" => {
                 if !check_options(&mut args, 'g') {
                     return;
@@ -123,6 +153,12 @@ fn main() {
             }
             "-n" | "--no-file-output" => {
                 args.stdout_output = true;
+            }
+            "-v" | "--verbose" => {
+                verbose = true;
+            }
+            "-f" | "--force" => {
+                force = true;
             }
             s => {
                 if s.chars().next().unwrap() != '-' {
@@ -143,6 +179,17 @@ fn main() {
                             print_help();
                             return;
                         }
+                        'v' => {
+                            verbose = true;
+                        }
+                        'f' => {
+                            force = true;
+                        }
+                        err if err == 'i' || err == 'd' => {
+                            println!("'{}' have to be used separately from other options. Example:", err);
+                            println!("./rustdoc-stripper -s -{} foo", err);
+                            return;
+                        }
                         err => {
                             println!("Unknown option: {}", err);
                             return;
@@ -152,13 +199,23 @@ fn main() {
             }
         }
     }
+    if wait_filename {
+        println!("-i option expects a filename. Example:");
+        println!("./rustdoc-stripper -i src/foo.rs");
+        return;
+    }
+    if wait_directory {
+        println!("-d option expects a directory path. Example:");
+        println!("./rustdoc-stripper -d src/");
+        return;
+    }
 
     if args.strip == true || (args.strip == false && args.regenerate == false) {
         let comments_path = Path::new(OUTPUT_COMMENT_FILE);
 
         if comments_path.exists() {
             if comments_path.is_file() {
-                if !ask_confirmation() {
+                if !force && !ask_confirmation() {
                     return;
                 }
             } else {
@@ -170,11 +227,11 @@ fn main() {
         if args.stdout_output {
             let tmp = io::stdout();
 
-            loop_over_files(".", &mut tmp.lock(), &strip_comments);
+            loop_over_files(&directory, &mut tmp.lock(), &strip_comments, &files_to_ignore, verbose);
         } else {
             match OpenOptions::new().write(true).create(true).truncate(true).open(OUTPUT_COMMENT_FILE) {
                 Ok(mut f) => {
-                    loop_over_files(".", &mut f, &strip_comments);
+                    loop_over_files(&directory, &mut f, &strip_comments, &files_to_ignore, verbose);
                 }
                 Err(e) => {
                     println!("Error while opening \"{}\": {}", OUTPUT_COMMENT_FILE, e);
@@ -184,7 +241,7 @@ fn main() {
         }
     } else {
         println!("Starting regeneration...");
-        regenerate_doc_comments();
+        regenerate_doc_comments(&directory, verbose);
         return;
     }
     println!("Done !");

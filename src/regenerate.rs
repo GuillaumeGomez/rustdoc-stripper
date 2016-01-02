@@ -254,7 +254,7 @@ fn save_remainings(infos: &HashMap<String, Vec<(Option<TypeStruct>, Vec<String>)
     }
 }
 
-pub fn regenerate_doc_comments() {
+pub fn regenerate_doc_comments(directory: &str, verbose: bool) {
     // we start by storing files info
     let f = match OpenOptions::new().read(true).open(OUTPUT_COMMENT_FILE) {
         Ok(f) => f,
@@ -313,7 +313,7 @@ pub fn regenerate_doc_comments() {
     if current_file.len() > 0 && current_infos.len() > 0 {
         infos.insert(current_file, current_infos.clone());
     }
-    loop_over_files(".", &mut infos, &regenerate_comments);
+    loop_over_files(directory, &mut infos, &regenerate_comments, &vec!(), verbose);
     save_remainings(&infos);
     // TODO: rewrite comments.cmts with remaining infos in regenerate_comments
 }
