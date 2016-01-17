@@ -18,16 +18,15 @@ use std::process::exit;
 use std::ops::Deref;
 use utils::join;
 
-use types::{
-    EventInfo,
+use stripper_interface::{
     EventType,
-    ParseResult,
     TypeStruct,
     Type,
     MOD_COMMENT,
     FILE_COMMENT,
     FILE,
 };
+use types::{EventInfo, ParseResult};
 
 fn move_to(words: &[&str], it: &mut usize, limit: &str, line: &mut usize) {
     while (*it + 1) < words.len() && limit.contains(words[*it + 1]) == false {

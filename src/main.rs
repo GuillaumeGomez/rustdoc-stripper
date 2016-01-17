@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+extern crate stripper_interface;
+
 use regenerate::regenerate_doc_comments;
 use std::{env, io};
 use std::io::{BufRead, Write};

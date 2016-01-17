@@ -18,15 +18,15 @@ use std::collections::HashMap;
 use strip;
 use utils::{join, loop_over_files};
 
-use types::{
+use stripper_interface::{
     TypeStruct,
     EventType,
     Type,
     MOD_COMMENT,
     FILE_COMMENT,
     FILE,
-    OUTPUT_COMMENT_FILE,
 };
+use types::OUTPUT_COMMENT_FILE;
 
 fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                           to_find: &Option<TypeStruct>,
