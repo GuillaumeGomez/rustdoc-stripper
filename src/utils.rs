@@ -27,7 +27,7 @@ pub fn loop_over_files<T>(path: &str, data: &mut T, func: &Fn(&str, &mut T),
             }
             entries.sort();
             for entry in entries {
-                check_path_type(entry.unwrap().path().to_str().unwrap(), data, func,
+                check_path_type(&entry, data, func,
                     files_to_ignore, verbose);
             }
         }
