@@ -2,18 +2,11 @@
 name = "rustdoc-stripper"
 version = "0.1.0"
 dependencies = [
- "stripper_lib 0.1.0",
+ "stripper_interface 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "stripper_interface"
 version = "0.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "stripper_lib"
-version = "0.1.0"
-dependencies = [
- "stripper_interface 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
 
