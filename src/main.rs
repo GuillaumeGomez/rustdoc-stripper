@@ -12,21 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate stripper_interface;
+extern crate stripper_lib;
 
-use regenerate::regenerate_doc_comments;
 use std::{env, io};
 use std::io::{BufRead, Write};
 use std::fs::OpenOptions;
 use std::path::Path;
-use strip::strip_comments;
-use types::OUTPUT_COMMENT_FILE;
-use utils::loop_over_files;
 
-mod regenerate;
-mod strip;
-mod types;
-mod utils;
+use stripper_lib::regenerate::regenerate_doc_comments;
+use stripper_lib::strip_comments;
+use stripper_lib::types::OUTPUT_COMMENT_FILE;
+use stripper_lib::loop_over_files;
 
 struct ExecOptions {
     stdout_output: bool,

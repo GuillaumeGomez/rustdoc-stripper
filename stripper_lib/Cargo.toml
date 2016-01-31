@@ -1,8 +1,13 @@
 [package]
-name = "rustdoc-stripper"
+name = "stripper_lib"
 version = "0.1.0"
 authors = ["Guillaume Gomez <guillaume1.gomez@gmail.com>"]
 license = "Apache-2.0"
 
 [dependencies]
-stripper_lib = { path = "./stripper_lib" }
+stripper_interface = "0.0.1"
+
+
+[lib]
+name = "stripper_lib"
+crate-type = ["dylib", "rlib"]
