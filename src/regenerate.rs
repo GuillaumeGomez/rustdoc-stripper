@@ -15,6 +15,7 @@
 use std::fs::{OpenOptions, remove_file};
 use std::io::{BufRead, BufReader, Write};
 use std::collections::HashMap;
+use std::ops::Deref;
 use strip;
 use utils::{join, loop_over_files};
 
@@ -264,15 +265,17 @@ pub fn regenerate_doc_comments(directory: &str, verbose: bool) {
         }
     };
     let reader = BufReader::new(f);
+    let lines: Vec<String> = reader.lines().collect::<Result<_, _>>().unwrap();
+    regenerate_doc_comments_real(directory, verbose, &lines);
+}
+
+pub fn regenerate_doc_comments_real<S>(directory: &str, verbose: bool, lines: &[S])
+where S: Deref<Target = str> {
     let mut current_file = String::new();
     let mut infos = HashMap::new();
     let mut current_infos = vec!();
-    let mut lines = vec!();
     let mut it = 0;
 
-    for tmp_line in reader.lines() {
-        lines.push(tmp_line.unwrap());
-    }
     while it < lines.len() {
         if lines[it].starts_with(FILE) {
             if current_file.len() > 0 && current_infos.len() > 0 {
