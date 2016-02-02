@@ -15,6 +15,7 @@
 use std::fs::{OpenOptions, remove_file};
 use std::io::{BufRead, BufReader, Write};
 use std::collections::HashMap;
+use std::ops::Deref;
 use strip;
 use utils::{join, loop_over_files};
 
@@ -264,56 +265,100 @@ pub fn regenerate_doc_comments(directory: &str, verbose: bool) {
         }
     };
     let reader = BufReader::new(f);
-    let mut current_file = String::new();
-    let mut infos = HashMap::new();
-    let mut current_infos = vec!();
-    let mut lines = vec!();
-    let mut it = 0;
+    let lines = reader.lines().map(|line| line.unwrap());
+    regenerate_doc_comments_real(directory, verbose, lines);
+}
 
-    for tmp_line in reader.lines() {
-        lines.push(tmp_line.unwrap());
-    }
-    while it < lines.len() {
-        if lines[it].starts_with(FILE) {
-            if current_file.len() > 0 && current_infos.len() > 0 {
-                infos.insert(current_file, current_infos.clone());
-                current_infos = vec!();
-            }
-            current_file = lines[it].replace(FILE, "").to_owned();
-            it += 1;
-        } else if lines[it].starts_with(MOD_COMMENT) {
-            let ty = parse_mod_line(&lines[it]);
-            let mut comments = vec!();
-
-            it += 1;
-            if ty.is_none() {
-                continue;
-            }
-            while it < lines.len() {
-                if lines[it].starts_with(MOD_COMMENT) ||
-                   lines[it].starts_with(FILE) {
-                    break;
-                }
-                comments.push(lines[it].to_owned());
-                it += 1;
-            }
-            if comments.len() > 0 {
-                current_infos.push((ty, comments));
-            }
-        } else if lines[it].starts_with(FILE_COMMENT) {
-            let mut comment_lines = vec!();
-
-            while it < lines.len() && lines[it].starts_with(FILE_COMMENT) {
-                comment_lines.push(lines[it][FILE_COMMENT.len()..].to_owned());
-                it += 1;
-            }
-            current_infos.push((None, comment_lines));
-        }
-    }
-    if current_file.len() > 0 && current_infos.len() > 0 {
-        infos.insert(current_file, current_infos.clone());
-    }
+pub fn regenerate_doc_comments_real<S, I>(directory: &str, verbose: bool, lines: I)
+where S: Deref<Target = str>,
+      I: Iterator<Item = S> {
+    let mut infos = parse(lines);
     loop_over_files(directory, &mut infos, &regenerate_comments, &vec!(), verbose);
     save_remainings(&infos);
     // TODO: rewrite comments.cmts with remaining infos in regenerate_comments
+}
+
+fn parse<S, I>(mut lines: I) -> HashMap<String, Vec<(Option<TypeStruct>, Vec<String>)>>
+where S: Deref<Target = str>,
+      I: Iterator<Item = S> {
+    enum State {
+        Initial,
+        File {
+            file: String,
+            infos: Vec<(Option<TypeStruct>, Vec<String>)>,
+            ty: Option<TypeStruct>,
+            comments: Vec<String>,
+        }
+    }
+
+    let mut ret = HashMap::new();
+    let mut state = State::Initial;
+
+    while let Some(line) = lines.next() {
+        state = match state {
+            State::Initial => {
+                if line.starts_with(FILE) {
+                    State::File {
+                        file: line[FILE.len()..].to_owned(),
+                        infos: vec![],
+                        ty: None,
+                        comments: vec![],
+                    }
+                } else {
+                    panic!("Unrecognized format");
+                }
+            }
+            State::File { mut file, mut infos, mut ty, mut comments } => {
+                if line.starts_with(FILE) {
+                    if !comments.is_empty() {
+                        infos.push((ty.take(), comments));
+                        comments = vec![];
+                    }
+                    if !infos.is_empty() {
+                        ret.insert(file, infos);
+                        file = line[FILE.len()..].to_owned();
+                        infos = vec![];
+                    }
+                } else if line.starts_with(FILE_COMMENT) {
+                    if let Some(ty) = ty.take() {
+                        if !comments.is_empty() {
+                            infos.push((Some(ty), comments));
+                            comments = vec![];
+                        }
+                    } else {
+                        comments.push(line[FILE_COMMENT.len()..].to_owned());
+                    }
+                } else if line.starts_with(MOD_COMMENT) {
+                    if !comments.is_empty() {
+                        infos.push((ty, comments));
+                        comments = vec![];
+                    }
+                    ty = parse_mod_line(&line[..]);
+                } else {
+                    if ty.is_some() {
+                        comments.push(line[..].to_owned());
+                    } else {
+                        panic!("Orphan comment");
+                    }
+                }
+                State::File {
+                    file: file,
+                    infos: infos,
+                    ty: ty,
+                    comments: comments,
+                }
+            }
+        }
+    }
+
+    if let State::File { file, mut infos, ty, comments } = state {
+        if !comments.is_empty() {
+            infos.push((ty, comments));
+        }
+        if !infos.is_empty() {
+            ret.insert(file, infos);
+        }
+    }
+
+    ret
 }
