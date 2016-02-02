@@ -265,19 +265,22 @@ pub fn regenerate_doc_comments(directory: &str, verbose: bool) {
         }
     };
     let reader = BufReader::new(f);
-    let lines: Vec<String> = reader.lines().collect::<Result<_, _>>().unwrap();
-    regenerate_doc_comments_real(directory, verbose, &lines);
+    let lines = reader.lines().map(|line| line.unwrap());
+    regenerate_doc_comments_real(directory, verbose, lines);
 }
 
-pub fn regenerate_doc_comments_real<S>(directory: &str, verbose: bool, lines: &[S])
-where S: Deref<Target = str> {
+pub fn regenerate_doc_comments_real<S, I>(directory: &str, verbose: bool, lines: I)
+where S: Deref<Target = str>,
+      I: Iterator<Item = S> {
     let mut infos = parse(lines);
     loop_over_files(directory, &mut infos, &regenerate_comments, &vec!(), verbose);
     save_remainings(&infos);
     // TODO: rewrite comments.cmts with remaining infos in regenerate_comments
 }
 
-fn parse<S: Deref<Target = str>>(lines: &[S]) -> HashMap<String, Vec<(Option<TypeStruct>, Vec<String>)>> {
+fn parse<S, I>(mut lines: I) -> HashMap<String, Vec<(Option<TypeStruct>, Vec<String>)>>
+where S: Deref<Target = str>,
+      I: Iterator<Item = S> {
     enum State {
         Initial,
         File {
@@ -289,7 +292,6 @@ fn parse<S: Deref<Target = str>>(lines: &[S]) -> HashMap<String, Vec<(Option<Typ
     }
 
     let mut ret = HashMap::new();
-    let mut lines = lines.iter();
     let mut state = State::Initial;
 
     while let Some(line) = lines.next() {
@@ -331,7 +333,7 @@ fn parse<S: Deref<Target = str>>(lines: &[S]) -> HashMap<String, Vec<(Option<Typ
                         infos.push((ty, comments));
                         comments = vec![];
                     }
-                    ty = parse_mod_line(line);
+                    ty = parse_mod_line(&line[..]);
                 } else {
                     if ty.is_some() {
                         comments.push(line[..].to_owned());
