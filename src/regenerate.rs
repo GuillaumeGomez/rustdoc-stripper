@@ -15,6 +15,7 @@
 use std::fs::{OpenOptions, remove_file};
 use std::io::{BufRead, BufReader, Write};
 use std::collections::HashMap;
+use std::mem;
 use std::ops::Deref;
 use strip;
 use utils::{join, loop_over_files};
@@ -271,18 +272,19 @@ pub fn regenerate_doc_comments(directory: &str, verbose: bool) {
 
 pub fn regenerate_doc_comments_real<S>(directory: &str, verbose: bool, lines: &[S])
 where S: Deref<Target = str> {
-    let mut current_file = String::new();
-    let mut infos = HashMap::new();
-    let mut current_infos = vec!();
+    let mut current_file: Option<String> = None;
+    let mut infos: HashMap<String, Vec<(Option<TypeStruct>, Vec<String>)>> = HashMap::new();
+    let mut current_infos: Vec<(Option<TypeStruct>, Vec<String>)> = vec![];
     let mut it = 0;
 
     while it < lines.len() {
         if lines[it].starts_with(FILE) {
-            if current_file.len() > 0 && current_infos.len() > 0 {
-                infos.insert(current_file, current_infos.clone());
-                current_infos = vec!();
+            if let Some(file) = current_file.take() {
+                if !current_infos.is_empty() {
+                    infos.insert(file, mem::replace(&mut current_infos, vec![]));
+                }
             }
-            current_file = lines[it].replace(FILE, "").to_owned();
+            current_file = Some(lines[it].replace(FILE, "").to_owned());
             it += 1;
         } else if lines[it].starts_with(MOD_COMMENT) {
             let ty = parse_mod_line(&lines[it]);
@@ -313,8 +315,10 @@ where S: Deref<Target = str> {
             current_infos.push((None, comment_lines));
         }
     }
-    if current_file.len() > 0 && current_infos.len() > 0 {
-        infos.insert(current_file, current_infos.clone());
+    if let Some(file) = current_file.take() {
+        if !current_infos.is_empty() {
+            infos.insert(file, mem::replace(&mut current_infos, vec![]));
+        }
     }
     loop_over_files(directory, &mut infos, &regenerate_comments, &vec!(), verbose);
     save_remainings(&infos);
