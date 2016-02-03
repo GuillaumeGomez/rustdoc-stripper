@@ -13,9 +13,11 @@
 // limitations under the License.
 
 use std::fs;
+use std::ops::Deref;
 
-pub fn loop_over_files<T>(path: &str, data: &mut T, func: &Fn(&str, &mut T),
-    files_to_ignore: &[String], verbose: bool) {
+pub fn loop_over_files<T, S>(path: &str, data: &mut T, func: &Fn(&str, &mut T),
+    files_to_ignore: &[S], verbose: bool)
+where S: Deref<Target = str> {
     match fs::read_dir(path) {
         Ok(it) => {
             let mut entries = vec!();
@@ -37,8 +39,9 @@ pub fn loop_over_files<T>(path: &str, data: &mut T, func: &Fn(&str, &mut T),
     }
 }
 
-fn check_path_type<T>(path: &str, data: &mut T, func: &Fn(&str, &mut T),
-    files_to_ignore: &[String], verbose: bool) {
+fn check_path_type<T, S>(path: &str, data: &mut T, func: &Fn(&str, &mut T),
+    files_to_ignore: &[S], verbose: bool)
+where S: Deref<Target = str> {
     match fs::metadata(path) {
         Ok(m) => {
             if m.is_dir() {
@@ -47,7 +50,8 @@ fn check_path_type<T>(path: &str, data: &mut T, func: &Fn(&str, &mut T),
                 }
                 loop_over_files(path, data, func, files_to_ignore, verbose);
             } else {
-                if path == "./comments.cmts" || !path.ends_with(".rs") || files_to_ignore.contains(&path.to_owned()) {
+                if path == "./comments.cmts" || !path.ends_with(".rs") ||
+                   files_to_ignore.iter().any(|s| &s[..] == path) {
                     if verbose {
                         println!("-> {}: ignored", path);
                     }

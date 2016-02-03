@@ -267,7 +267,8 @@ pub fn regenerate_doc_comments(directory: &str, verbose: bool) {
     let reader = BufReader::new(f);
     let lines = reader.lines().map(|line| line.unwrap());
     let mut infos = parse_cmts(lines);
-    loop_over_files(directory, &mut infos, &regenerate_comments, &vec!(), verbose);
+    let ignores: &[&str] = &[];
+    loop_over_files(directory, &mut infos, &regenerate_comments, &ignores, verbose);
     save_remainings(&infos);
     // TODO: rewrite comments.cmts with remaining infos in regenerate_comments
 }
