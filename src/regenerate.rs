@@ -225,7 +225,7 @@ fn save_remainings(infos: &HashMap<String, Vec<(Option<TypeStruct>, Vec<String>)
         }
     }
     if remainings < 1 {
-        remove_file(OUTPUT_COMMENT_FILE);
+        let _ = remove_file(OUTPUT_COMMENT_FILE);
         return;
     }
     match OpenOptions::new().write(true).create(true).truncate(true).open(OUTPUT_COMMENT_FILE) {
@@ -236,11 +236,11 @@ fn save_remainings(infos: &HashMap<String, Vec<(Option<TypeStruct>, Vec<String>)
                 if content.len() < 1 {
                     continue;
                 }
-                writeln!(out_file, "{}{}", FILE_COMMENT, key);
+                let _ = writeln!(out_file, "{}{}", FILE_COMMENT, key);
                 for line in content {
                     match line.0 {
                         Some(ref d) => {
-                            writeln!(out_file, "{}{}\n{}", MOD_COMMENT, d, join(&line.1, "\n"));
+                            let _ = writeln!(out_file, "{}{}\n{}", MOD_COMMENT, d, join(&line.1, "\n"));
                         }
                         None => {}
                     }
