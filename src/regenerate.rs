@@ -86,7 +86,7 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
     None
 }
 
-fn regenerate_comments(path: &str, infos: &mut HashMap<String, Vec<(Option<TypeStruct>, Vec<String>)>>) {
+pub fn regenerate_comments(path: &str, infos: &mut HashMap<String, Vec<(Option<TypeStruct>, Vec<String>)>>) {
     if !infos.contains_key(path) {
         return;
     }
@@ -225,7 +225,7 @@ fn save_remainings(infos: &HashMap<String, Vec<(Option<TypeStruct>, Vec<String>)
         }
     }
     if remainings < 1 {
-        remove_file(OUTPUT_COMMENT_FILE);
+        let _ = remove_file(OUTPUT_COMMENT_FILE);
         return;
     }
     match OpenOptions::new().write(true).create(true).truncate(true).open(OUTPUT_COMMENT_FILE) {
@@ -236,11 +236,11 @@ fn save_remainings(infos: &HashMap<String, Vec<(Option<TypeStruct>, Vec<String>)
                 if content.len() < 1 {
                     continue;
                 }
-                writeln!(out_file, "{}{}", FILE_COMMENT, key);
+                let _ = writeln!(out_file, "{}{}", FILE_COMMENT, key);
                 for line in content {
                     match line.0 {
                         Some(ref d) => {
-                            writeln!(out_file, "{}{}\n{}", MOD_COMMENT, d, join(&line.1, "\n"));
+                            let _ = writeln!(out_file, "{}{}\n{}", MOD_COMMENT, d, join(&line.1, "\n"));
                         }
                         None => {}
                     }
@@ -266,19 +266,13 @@ pub fn regenerate_doc_comments(directory: &str, verbose: bool) {
     };
     let reader = BufReader::new(f);
     let lines = reader.lines().map(|line| line.unwrap());
-    regenerate_doc_comments_real(directory, verbose, lines);
-}
-
-pub fn regenerate_doc_comments_real<S, I>(directory: &str, verbose: bool, lines: I)
-where S: Deref<Target = str>,
-      I: Iterator<Item = S> {
-    let mut infos = parse(lines);
+    let mut infos = parse_cmts(lines);
     loop_over_files(directory, &mut infos, &regenerate_comments, &vec!(), verbose);
     save_remainings(&infos);
     // TODO: rewrite comments.cmts with remaining infos in regenerate_comments
 }
 
-fn parse<S, I>(mut lines: I) -> HashMap<String, Vec<(Option<TypeStruct>, Vec<String>)>>
+pub fn parse_cmts<S, I>(mut lines: I) -> HashMap<String, Vec<(Option<TypeStruct>, Vec<String>)>>
 where S: Deref<Target = str>,
       I: Iterator<Item = S> {
     enum State {

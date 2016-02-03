@@ -17,7 +17,11 @@ pub mod strip;
 pub mod types;
 pub mod utils;
 
-pub use regenerate::regenerate_doc_comments;
+pub use regenerate::{
+    parse_cmts,
+    regenerate_comments,
+    regenerate_doc_comments,
+};
 pub use strip::strip_comments;
 pub use utils::loop_over_files;
 
