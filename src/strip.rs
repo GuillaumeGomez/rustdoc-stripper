@@ -74,7 +74,7 @@ pub fn add_to_type_scope(current: &Option<TypeStruct>, e: &Option<TypeStruct>) -
                     tmp.parent = Some(Box::new(c.clone()));
                     Some(tmp)
                 }
-                &None => {
+                _ => {
                     let mut tmp = TypeStruct::empty();
                     tmp.parent = Some(Box::new(c.clone()));
                     Some(tmp)
@@ -83,7 +83,7 @@ pub fn add_to_type_scope(current: &Option<TypeStruct>, e: &Option<TypeStruct>) -
         },
         &None => match e {
             &Some(ref t) => Some(t.clone()),
-            &None => None,
+            _ => None,
         }
     }
 }
