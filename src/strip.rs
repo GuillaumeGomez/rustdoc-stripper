@@ -128,6 +128,7 @@ pub fn build_event_list(path: &str) -> io::Result<ParseResult> {
                                    .replace("*/", " */")
                                    .replace("\n", " \n ")
                                    .replace("!(", " !! (")
+                                   .replace("!  {", " !! {")
                                    .replace(",", ", ")
                                    .replace("(", " (");
             let b_content : Vec<String> = b_content.split('\n').map(|s| s.to_owned()).collect();
