@@ -287,7 +287,6 @@ fn save_remainings(infos: &HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<
                     }
                 }
             }
-            println!("Not implemented yet.");
         }
         Err(e) => {
             println!("An error occured while trying to open '{}': {}", OUTPUT_COMMENT_FILE, e);

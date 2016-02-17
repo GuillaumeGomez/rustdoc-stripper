@@ -192,7 +192,7 @@ pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
                                                                 TypeStruct::new(
                                                                     Type::from(words[it]),
                                                                                get_before(words[it + 1],
-                                                                                          &vec!('\t', '\n', '\r', '<', '{', ':', ';'))
+                                                                                          &vec!('\t', '\n', '\r', '<', '{', ':', ';', '!'))
                                                                                ))));
                         it += 1;
                     }
