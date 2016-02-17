@@ -235,14 +235,14 @@ fn main() {
         if args.stdout_output {
             let tmp = io::stdout();
 
-            loop_over_files(&directory, &mut tmp.lock(), &|s, d| {
-                strip_comments(s, d, args.ignore_macros)
+            loop_over_files(directory.as_ref(), &mut tmp.lock(), &|w, s, d| {
+                strip_comments(w, s, d, args.ignore_macros)
             }, &files_to_ignore, verbose);
         } else {
             match OpenOptions::new().write(true).create(true).truncate(true).open(OUTPUT_COMMENT_FILE) {
                 Ok(mut f) => {
-                    loop_over_files(&directory, &mut f, &|s, d| {
-                        strip_comments(s, d, args.ignore_macros)
+                    loop_over_files(directory.as_ref(), &mut f, &|w, s, d| {
+                        strip_comments(w, s, d, args.ignore_macros)
                     }, &files_to_ignore, verbose);
                 }
                 Err(e) => {

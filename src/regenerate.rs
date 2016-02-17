@@ -16,6 +16,7 @@ use std::fs::{OpenOptions, remove_file};
 use std::io::{BufRead, BufReader, Write};
 use std::collections::HashMap;
 use std::ops::Deref;
+use std::path::Path;
 use strip;
 use types::ParseResult;
 use utils::{join, loop_over_files};
@@ -88,20 +89,21 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
 }
 
 // The hashmap key is `Some(file name)` or `None` for entries that ignore file name
-pub fn regenerate_comments(path: &str,
+pub fn regenerate_comments(work_dir: &Path, path: &str,
         infos: &mut HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<String>)>>) {
     if !infos.contains_key(&None) && !infos.contains_key(&Some(path.to_owned())) {
         return;
     }
-    match strip::build_event_list(path) {
+    let full_path = work_dir.join(path);
+    match strip::build_event_list(&full_path) {
         Ok(ref mut parse_result) => {
             // exact path match
             if let Some(v) = infos.get_mut(&Some(path.to_owned())) {
-                do_regenerate(path, parse_result, v);
+                do_regenerate(&full_path, parse_result, v);
             }
             // apply to all files
             if let Some(v) = infos.get_mut(&None) {
-                do_regenerate(path, parse_result, v);
+                do_regenerate(&full_path, parse_result, v);
             }
         }
         Err(e) => {
@@ -110,7 +112,7 @@ pub fn regenerate_comments(path: &str,
     }
 }
 
-fn do_regenerate(path: &str, parse_result: &mut ParseResult,
+fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                  elements: &mut Vec<(Option<TypeStruct>, Vec<String>)>) {
     let mut position = 0;
     let mut decal = 0;
@@ -204,14 +206,13 @@ fn do_regenerate(path: &str, parse_result: &mut ParseResult,
     rewrite_file(path, &parse_result.original_content);
 }
 
-
-fn rewrite_file(path: &str, o_content: &[String]) {
+fn rewrite_file(path: &Path, o_content: &[String]) {
     match OpenOptions::new().write(true).create(true).truncate(true).open(path) {
         Ok(mut f) => {
             write!(f, "{}", o_content.join("\n")).unwrap();
         }
         Err(e) => {
-            println!("Cannot open '{}': {}", path, e);
+            println!("Cannot open '{}': {}", path.display(), e);
         }
     }
 }
@@ -285,7 +286,7 @@ pub fn regenerate_doc_comments(directory: &str, verbose: bool) {
     let lines = reader.lines().map(|line| line.unwrap());
     let mut infos = parse_cmts(lines);
     let ignores: &[&str] = &[];
-    loop_over_files(directory, &mut infos, &regenerate_comments, &ignores, verbose);
+    loop_over_files(directory.as_ref(), &mut infos, &regenerate_comments, &ignores, verbose);
     save_remainings(&infos);
     // TODO: rewrite comments.cmts with remaining infos in regenerate_comments
 }
