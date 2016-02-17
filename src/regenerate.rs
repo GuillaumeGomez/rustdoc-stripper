@@ -17,6 +17,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::collections::HashMap;
 use std::ops::Deref;
 use strip;
+use types::ParseResult;
 use utils::{join, loop_over_files};
 
 use stripper_interface::{
@@ -86,109 +87,123 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
     None
 }
 
-pub fn regenerate_comments(path: &str, infos: &mut HashMap<String, Vec<(Option<TypeStruct>, Vec<String>)>>) {
-    if !infos.contains_key(path) {
+// The hashmap key is `Some(file name)` or `None` for entries that ignore file name
+pub fn regenerate_comments(path: &str,
+        infos: &mut HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<String>)>>) {
+    if !infos.contains_key(&None) && !infos.contains_key(&Some(path.to_owned())) {
         return;
     }
     match strip::build_event_list(path) {
-        Ok(mut parse_result) => {
-            let mut elements = infos.get_mut(path).unwrap();
-            let mut position = 0;
-            let mut decal = 0;
-
-            // first, we need to put back file comment
-            for entry in elements.iter() {
-                if entry.0.is_none() {
-                    let mut it = 0;
-
-                    while it < parse_result.original_content.len() {
-                        if parse_result.original_content[it].starts_with("/") &&
-                           it + 1 < parse_result.original_content.len() &&
-                           parse_result.original_content[it + 1].len() < 1 {
-                            it += 2;
-                            break;
-                        }
-                        it += 1;
-                    }
-                    if it < parse_result.original_content.len() {
-                        for line in &entry.1 {
-                            parse_result.original_content.insert(it, line.clone());
-                            decal += 1;
-                            it += 1;
-                        }
-                    }
-                    break;
-                }
-                position += 1;
+        Ok(ref mut parse_result) => {
+            // exact path match
+            if let Some(v) = infos.get_mut(&Some(path.to_owned())) {
+                do_regenerate(path, parse_result, v);
             }
-            if position < elements.len() {
-                elements.remove(position);
+            // apply to all files
+            if let Some(v) = infos.get_mut(&None) {
+                do_regenerate(path, parse_result, v);
             }
-            let mut waiting_type = None;
-            let mut current = None;
-            let mut it = 0;
-
-            while it < parse_result.event_list.len() {
-                match parse_result.event_list[it].event {
-                    EventType::Type(ref t) => {
-                        if t.ty != Type::Unknown {
-                            waiting_type = Some(t.clone());
-                            let tmp = strip::add_to_type_scope(&current, &waiting_type);
-
-                            match get_corresponding_type(&elements, &tmp,
-                                                         parse_result.event_list[it].line,
-                                                         &mut decal,
-                                                         &mut parse_result.original_content) {
-                                Some(l) => { elements.remove(l); },
-                                None => {}
-                            };
-                        } else {
-                            match current {
-                                Some(ref c) => {
-                                    if c.ty == Type::Struct || c.ty == Type::Enum ||
-                                       c.ty == Type::Mod {
-                                        let tmp = Some(t.clone());
-                                        let cc = strip::add_to_type_scope(&current, &tmp);
-
-                                        match get_corresponding_type(&elements, &cc,
-                                                                     parse_result.event_list[it].line,
-                                                                     &mut decal,
-                                                                     &mut parse_result.original_content) {
-                                            Some(l) => { elements.remove(l); },
-                                            None => {}
-                                        }
-                                    }
-                                }
-                                None => {}
-                            }
-                        }
-                    }
-                    EventType::InScope => {
-                        current = strip::add_to_type_scope(&current, &waiting_type);
-                        waiting_type = None;
-                        match get_corresponding_type(&elements, &current,
-                                                     parse_result.event_list[it].line,
-                                                     &mut decal,
-                                                     &mut parse_result.original_content) {
-                            Some(l) => { elements.remove(l); },
-                            None => {}
-                        };
-                    }
-                    EventType::OutScope => {
-                        current = strip::type_out_scope(&current);
-                        waiting_type = None;
-                    }
-                    _ => {}
-                }
-                it += 1;
-            }
-            rewrite_file(path, &parse_result.original_content);
         }
         Err(e) => {
-            println!("Error on file '{}': {}", path, e);
+            println!("Error in file '{}': {}", path, e);
         }
     }
 }
+
+fn do_regenerate(path: &str, parse_result: &mut ParseResult,
+                 elements: &mut Vec<(Option<TypeStruct>, Vec<String>)>) {
+    let mut position = 0;
+    let mut decal = 0;
+
+    // first, we need to put back file comment
+    for entry in elements.iter() {
+        if entry.0.is_none() {
+            let mut it = 0;
+
+            while it < parse_result.original_content.len() {
+                if parse_result.original_content[it].starts_with("/") &&
+                   it + 1 < parse_result.original_content.len() &&
+                   parse_result.original_content[it + 1].len() < 1 {
+                    it += 2;
+                    break;
+                }
+                it += 1;
+            }
+            if it < parse_result.original_content.len() {
+                for line in &entry.1 {
+                    parse_result.original_content.insert(it, line.clone());
+                    decal += 1;
+                    it += 1;
+                }
+            }
+            break;
+        }
+        position += 1;
+    }
+    if position < elements.len() {
+        elements.remove(position);
+    }
+    let mut waiting_type = None;
+    let mut current = None;
+    let mut it = 0;
+
+    while it < parse_result.event_list.len() {
+        match parse_result.event_list[it].event {
+            EventType::Type(ref t) => {
+                if t.ty != Type::Unknown {
+                    waiting_type = Some(t.clone());
+                    let tmp = strip::add_to_type_scope(&current, &waiting_type);
+
+                    match get_corresponding_type(&elements, &tmp,
+                                                 parse_result.event_list[it].line,
+                                                 &mut decal,
+                                                 &mut parse_result.original_content) {
+                        Some(l) => { elements.remove(l); },
+                        None => {}
+                    };
+                } else {
+                    match current {
+                        Some(ref c) => {
+                            if c.ty == Type::Struct || c.ty == Type::Enum ||
+                               c.ty == Type::Mod {
+                                let tmp = Some(t.clone());
+                                let cc = strip::add_to_type_scope(&current, &tmp);
+
+                                match get_corresponding_type(&elements, &cc,
+                                                             parse_result.event_list[it].line,
+                                                             &mut decal,
+                                                             &mut parse_result.original_content) {
+                                    Some(l) => { elements.remove(l); },
+                                    None => {}
+                                }
+                            }
+                        }
+                        None => {}
+                    }
+                }
+            }
+            EventType::InScope => {
+                current = strip::add_to_type_scope(&current, &waiting_type);
+                waiting_type = None;
+                match get_corresponding_type(&elements, &current,
+                                             parse_result.event_list[it].line,
+                                             &mut decal,
+                                             &mut parse_result.original_content) {
+                    Some(l) => { elements.remove(l); },
+                    None => {}
+                };
+            }
+            EventType::OutScope => {
+                current = strip::type_out_scope(&current);
+                waiting_type = None;
+            }
+            _ => {}
+        }
+        it += 1;
+    }
+    rewrite_file(path, &parse_result.original_content);
+}
+
 
 fn rewrite_file(path: &str, o_content: &[String]) {
     match OpenOptions::new().write(true).create(true).truncate(true).open(path) {
@@ -216,7 +231,7 @@ fn parse_mod_line(line: &str) -> Option<TypeStruct> {
     current
 }
 
-fn save_remainings(infos: &HashMap<String, Vec<(Option<TypeStruct>, Vec<String>)>>) {
+fn save_remainings(infos: &HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<String>)>>) {
     let mut remainings = 0;
 
     for (_, content) in infos {
@@ -236,7 +251,9 @@ fn save_remainings(infos: &HashMap<String, Vec<(Option<TypeStruct>, Vec<String>)
                 if content.len() < 1 {
                     continue;
                 }
-                let _ = writeln!(out_file, "{}{}", FILE_COMMENT, key);
+                // Set the name to "*" for entries that ignore file name
+                let key = key.as_ref().map(|s| &s[..]).unwrap_or("*");
+                let _ = writeln!(out_file, "{}{}", FILE, key);
                 for line in content {
                     match line.0 {
                         Some(ref d) => {
@@ -273,16 +290,35 @@ pub fn regenerate_doc_comments(directory: &str, verbose: bool) {
     // TODO: rewrite comments.cmts with remaining infos in regenerate_comments
 }
 
-pub fn parse_cmts<S, I>(mut lines: I) -> HashMap<String, Vec<(Option<TypeStruct>, Vec<String>)>>
+pub fn parse_cmts<S, I>(mut lines: I)
+    -> HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<String>)>>
 where S: Deref<Target = str>,
       I: Iterator<Item = S> {
     enum State {
         Initial,
         File {
-            file: String,
+            file: Option<String>,
             infos: Vec<(Option<TypeStruct>, Vec<String>)>,
             ty: Option<TypeStruct>,
             comments: Vec<String>,
+        }
+    }
+
+    // Returns `Some(name)` if the line matches FILE
+    // where name is Some for an actual file name and None for "*"
+    // The "*" entries are to be applied regardless of file name
+    fn line_file(line: &str) -> Option<Option<String>> {
+        if line.starts_with(FILE) {
+            let name = &line[FILE.len()..];
+            if name == "*" {
+                Some(None)
+            }
+            else {
+                Some(Some(name.to_owned()))
+            }
+        }
+        else {
+            None
         }
     }
 
@@ -292,9 +328,9 @@ where S: Deref<Target = str>,
     while let Some(line) = lines.next() {
         state = match state {
             State::Initial => {
-                if line.starts_with(FILE) {
+                if let Some(file) = line_file(&line) {
                     State::File {
-                        file: line[FILE.len()..].to_owned(),
+                        file: file,
                         infos: vec![],
                         ty: None,
                         comments: vec![],
@@ -304,14 +340,14 @@ where S: Deref<Target = str>,
                 }
             }
             State::File { mut file, mut infos, mut ty, mut comments } => {
-                if line.starts_with(FILE) {
+                if let Some(new_file) = line_file(&line) {
                     if !comments.is_empty() {
                         infos.push((ty.take(), comments));
                         comments = vec![];
                     }
                     if !infos.is_empty() {
                         ret.insert(file, infos);
-                        file = line[FILE.len()..].to_owned();
+                        file = new_file;
                         infos = vec![];
                     }
                 } else if line.starts_with(FILE_COMMENT) {
