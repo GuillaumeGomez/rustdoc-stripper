@@ -281,7 +281,7 @@ fn save_remainings(infos: &HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<
                 for line in content {
                     match line.0 {
                         Some(ref d) => {
-                            let _ = writeln!(out_file, "{}{}\n{}", MOD_COMMENT, d, join(&line.1, "\n"));
+                            let _ = writeln!(out_file, "{}{:?}\n{}", MOD_COMMENT, d, join(&line.1, "\n"));
                         }
                         None => {}
                     }

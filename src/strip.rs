@@ -50,6 +50,10 @@ fn move_until(words: &[&str], it: &mut usize, limit: &str, line: &mut usize) {
     }
 }
 
+fn get_before<'a>(word: &'a str, limits: &[char]) -> &'a str {
+    word.find(limits).map(|pos| &word[..pos]).unwrap_or(word)
+}
+
 fn get_impl(words: &[&str], it: &mut usize, line: &mut usize) -> Vec<String> {
     let mut v = vec!();
 
@@ -184,7 +188,12 @@ pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
                         event_list.push(EventInfo::new(line, EventType::Type(TypeStruct::new(Type::from(ty), &name))));
                     }
                     "struct" | "fn" | "enum" | "const" | "static" | "type" | "trait" | "macro_rules!" => {
-                        event_list.push(EventInfo::new(line, EventType::Type(TypeStruct::new(Type::from(words[it]), words[it + 1]))));
+                        event_list.push(EventInfo::new(line, EventType::Type(
+                                                                TypeStruct::new(
+                                                                    Type::from(words[it]),
+                                                                               get_before(words[it + 1],
+                                                                                          &vec!('\t', '\n', '\r', '<', '{', ':', ';'))
+                                                                               ))));
                         it += 1;
                     }
                     "!!" => {
