@@ -313,7 +313,6 @@ pub fn regenerate_doc_comments(directory: &str, verbose: bool, ignore_macros: bo
         regenerate_comments(w, s, &mut infos, ignore_macros)
     }, &ignores, verbose);
     save_remainings(&infos);
-    // TODO: rewrite comments.cmts with remaining infos in regenerate_comments
 }
 
 fn sub_erase_macro_path(ty: Option<Box<TypeStruct>>, is_parent: bool) -> Option<Box<TypeStruct>> {
