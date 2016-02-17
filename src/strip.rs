@@ -14,6 +14,7 @@
 
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead, Write, Read};
+use std::path::Path;
 use std::process::exit;
 use std::ops::Deref;
 use utils::join;
@@ -113,7 +114,7 @@ fn get_mod<F: Write>(current: &Option<TypeStruct>, out_file: &mut F) -> bool {
     }
 }
 
-pub fn build_event_list(path: &str) -> io::Result<ParseResult> {
+pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
     match File::open(path) {
         Ok(mut f) => {
             let mut b_content = String::new();
@@ -228,8 +229,10 @@ pub fn build_event_list(path: &str) -> io::Result<ParseResult> {
     }
 }
 
-pub fn strip_comments<F: Write>(path: &str, out_file: &mut F, ignore_macros: bool) {
-    match build_event_list(path) {
+pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
+                                ignore_macros: bool) {
+    let full_path = work_dir.join(path);
+    match build_event_list(&full_path) {
         Ok(parse_result) => {
             if parse_result.comment_lines.len() < 1 {
                 return;
@@ -351,7 +354,7 @@ pub fn strip_comments<F: Write>(path: &str, out_file: &mut F, ignore_macros: boo
                 it += 1;
             }
             // we now remove doc comments from original file
-            remove_comments(path, &parse_result.comment_lines, parse_result.original_content);
+            remove_comments(&full_path, &parse_result.comment_lines, parse_result.original_content);
         }
         Err(e) => {
             println!("Unable to open \"{}\": {}", path, e);
@@ -359,7 +362,7 @@ pub fn strip_comments<F: Write>(path: &str, out_file: &mut F, ignore_macros: boo
     }
 }
 
-fn remove_comments(path: &str, to_remove: &[usize], mut o_content: Vec<String>) {
+fn remove_comments(path: &Path, to_remove: &[usize], mut o_content: Vec<String>) {
     match OpenOptions::new().write(true).create(true).truncate(true).open(path) {
         Ok(mut f) => {
             let mut decal = 0;
@@ -371,7 +374,7 @@ fn remove_comments(path: &str, to_remove: &[usize], mut o_content: Vec<String>) 
             write!(f, "{}", o_content.join("\n")).unwrap();
         }
         Err(e) => {
-            println!("Cannot open '{}': {}", path, e);
+            println!("Cannot open '{}': {}", path.display(), e);
         }
     }
 }
