@@ -15,6 +15,7 @@ Available options for rustdoc-stripper are:
 * -d | --dir [directory]  : Specify a directory path to work on, optional
 * -v | --verbose          : Activate verbose mode
 * -f | --force            : Remove confirmation demands
+* -m | --ignore-macros    : macros in hierarchy will be ignored (so only macros with doc comments will appear in the comments file)
 
 By default, rustdoc is run with -s option:
 
