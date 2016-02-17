@@ -128,7 +128,7 @@ pub fn build_event_list(path: &str) -> io::Result<ParseResult> {
                                    .replace("*/", " */")
                                    .replace("\n", " \n ")
                                    .replace("!(", " !! (")
-                                   .replace("!  {", " !! {")
+                                   .replace("!  {", " !? {")
                                    .replace(",", ", ")
                                    .replace("(", " (");
             let b_content : Vec<String> = b_content.split('\n').map(|s| s.to_owned()).collect();
@@ -191,6 +191,10 @@ pub fn build_event_list(path: &str) -> io::Result<ParseResult> {
                             EventType::Type(TypeStruct::new(Type::from("macro"), &format!("{}!{}", words[it - 1], words[it + 1])))));
                         it += 1;
                     }
+                    "!?" => {
+                        event_list.push(EventInfo::new(line,
+                            EventType::Type(TypeStruct::new(Type::from("macro"), &format!("{}!", words[it - 1])))));
+                    }
                     "impl" => {
                         event_list.push(EventInfo::new(line,
                             EventType::Type(TypeStruct::new(Type::Impl, &join(&get_impl(&words, &mut it, &mut line), " ")))));
@@ -224,7 +228,7 @@ pub fn build_event_list(path: &str) -> io::Result<ParseResult> {
     }
 }
 
-pub fn strip_comments<F: Write>(path: &str, out_file: &mut F) {
+pub fn strip_comments<F: Write>(path: &str, out_file: &mut F, ignore_macros: bool) {
     match build_event_list(path) {
         Ok(parse_result) => {
             if parse_result.comment_lines.len() < 1 {
@@ -302,7 +306,11 @@ pub fn strip_comments<F: Write>(path: &str, out_file: &mut F) {
                                                         let mut copy = t.clone();
                                                         copy.ty = Type::Variant;
                                                         let tmp = add_to_type_scope(&current, &Some(copy));
-                                                        write!(out_file, "{}{}\n{}", MOD_COMMENT, tmp.unwrap(), comments).unwrap();
+                                                        if ignore_macros {
+                                                            write!(out_file, "{}{}\n{}", MOD_COMMENT, tmp.unwrap(), comments).unwrap();
+                                                        } else {
+                                                            write!(out_file, "{}{:?}\n{}", MOD_COMMENT, tmp.unwrap(), comments).unwrap();
+                                                        }
                                                         false
                                                     }
                                                 } else {
@@ -324,7 +332,11 @@ pub fn strip_comments<F: Write>(path: &str, out_file: &mut F) {
                                     },
                                     _ => {
                                         let tmp = add_to_type_scope(&current, &Some(t.clone()));
-                                        write!(out_file, "{}{}\n{}", MOD_COMMENT, tmp.unwrap(), comments).unwrap();
+                                        if ignore_macros {
+                                            write!(out_file, "{}{}\n{}", MOD_COMMENT, tmp.unwrap(), comments).unwrap();
+                                        } else {
+                                            write!(out_file, "{}{:?}\n{}", MOD_COMMENT, tmp.unwrap(), comments).unwrap();
+                                        }
                                         false
                                     }
                                 }

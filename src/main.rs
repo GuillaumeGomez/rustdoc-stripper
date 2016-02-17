@@ -28,6 +28,7 @@ struct ExecOptions {
     stdout_output: bool,
     strip: bool,
     regenerate: bool,
+    ignore_macros: bool,
 }
 
 fn check_options(args: &mut ExecOptions, to_change: char) -> bool {
@@ -59,6 +60,8 @@ fn print_help() {
     -d | --dir [directory]  : Specify a directory path to work on, optional
     -v | --verbose          : Activate verbose mode
     -f | --force            : Remove confirmation demands
+    -m | --ignore-macros    : macros in hierarchy will be ignored (so only macros with
+                              doc comments will appear in the comments file)
 
 By default, rustdoc is run with -s option:
 ./rustdoc-stripper -s
@@ -104,6 +107,7 @@ fn main() {
         stdout_output: false,
         strip: false,
         regenerate: false,
+        ignore_macros: false,
     };
     let mut first = true;
     let mut wait_filename = false;
@@ -158,6 +162,9 @@ fn main() {
             "-f" | "--force" => {
                 force = true;
             }
+            "-m" | "--ignore-macros" => {
+                args.ignore_macros = true;
+            }
             s => {
                 if s.chars().next().unwrap() != '-' {
                     println!("Unknown option: {}", s);
@@ -172,6 +179,9 @@ fn main() {
                         }
                         'n' => {
                             args.stdout_output = true;
+                        }
+                        'm' => {
+                            args.ignore_macros = true;
                         }
                         'h' => {
                             print_help();
@@ -225,11 +235,15 @@ fn main() {
         if args.stdout_output {
             let tmp = io::stdout();
 
-            loop_over_files(&directory, &mut tmp.lock(), &strip_comments, &files_to_ignore, verbose);
+            loop_over_files(&directory, &mut tmp.lock(), &|s, d| {
+                strip_comments(s, d, args.ignore_macros)
+            }, &files_to_ignore, verbose);
         } else {
             match OpenOptions::new().write(true).create(true).truncate(true).open(OUTPUT_COMMENT_FILE) {
                 Ok(mut f) => {
-                    loop_over_files(&directory, &mut f, &strip_comments, &files_to_ignore, verbose);
+                    loop_over_files(&directory, &mut f, &|s, d| {
+                        strip_comments(s, d, args.ignore_macros)
+                    }, &files_to_ignore, verbose);
                 }
                 Err(e) => {
                     println!("Error while opening \"{}\": {}", OUTPUT_COMMENT_FILE, e);
