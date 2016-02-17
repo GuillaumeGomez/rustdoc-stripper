@@ -253,7 +253,7 @@ fn main() {
         }
     } else {
         println!("Starting regeneration...");
-        regenerate_doc_comments(&directory, verbose);
+        regenerate_doc_comments(&directory, verbose, args.ignore_macros);
         return;
     }
     println!("Done !");

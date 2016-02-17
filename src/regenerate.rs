@@ -90,7 +90,8 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
 
 // The hashmap key is `Some(file name)` or `None` for entries that ignore file name
 pub fn regenerate_comments(work_dir: &Path, path: &str,
-        infos: &mut HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<String>)>>) {
+        infos: &mut HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<String>)>>,
+        ignore_macros: bool) {
     if !infos.contains_key(&None) && !infos.contains_key(&Some(path.to_owned())) {
         return;
     }
@@ -99,11 +100,11 @@ pub fn regenerate_comments(work_dir: &Path, path: &str,
         Ok(ref mut parse_result) => {
             // exact path match
             if let Some(v) = infos.get_mut(&Some(path.to_owned())) {
-                do_regenerate(&full_path, parse_result, v);
+                do_regenerate(&full_path, parse_result, v, ignore_macros);
             }
             // apply to all files
             if let Some(v) = infos.get_mut(&None) {
-                do_regenerate(&full_path, parse_result, v);
+                do_regenerate(&full_path, parse_result, v, ignore_macros);
             }
         }
         Err(e) => {
@@ -113,7 +114,8 @@ pub fn regenerate_comments(work_dir: &Path, path: &str,
 }
 
 fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
-                 elements: &mut Vec<(Option<TypeStruct>, Vec<String>)>) {
+                 elements: &mut Vec<(Option<TypeStruct>, Vec<String>)>,
+                 ignore_macros: bool) {
     let mut position = 0;
     let mut decal = 0;
 
@@ -154,7 +156,14 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
             EventType::Type(ref t) => {
                 if t.ty != Type::Unknown {
                     waiting_type = Some(t.clone());
-                    let tmp = strip::add_to_type_scope(&current, &waiting_type);
+                    let tmp = {
+                        let t = strip::add_to_type_scope(&current, &waiting_type);
+                        if ignore_macros {
+                            erase_macro_path(t)
+                        } else {
+                            t
+                        }
+                    };
 
                     match get_corresponding_type(&elements, &tmp,
                                                  parse_result.event_list[it].line,
@@ -169,7 +178,14 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                             if c.ty == Type::Struct || c.ty == Type::Enum ||
                                c.ty == Type::Mod {
                                 let tmp = Some(t.clone());
-                                let cc = strip::add_to_type_scope(&current, &tmp);
+                                let cc = {
+                                    let t = strip::add_to_type_scope(&current, &tmp);
+                                    if ignore_macros {
+                                        erase_macro_path(t)
+                                    } else {
+                                        t
+                                    }
+                                };
 
                                 match get_corresponding_type(&elements, &cc,
                                                              parse_result.event_list[it].line,
@@ -185,7 +201,14 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                 }
             }
             EventType::InScope => {
-                current = strip::add_to_type_scope(&current, &waiting_type);
+                current = {
+                    let t = strip::add_to_type_scope(&current, &waiting_type);
+                    if ignore_macros {
+                        erase_macro_path(t)
+                    } else {
+                        t
+                    }
+                };
                 waiting_type = None;
                 match get_corresponding_type(&elements, &current,
                                              parse_result.event_list[it].line,
@@ -273,7 +296,7 @@ fn save_remainings(infos: &HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<
     }
 }
 
-pub fn regenerate_doc_comments(directory: &str, verbose: bool) {
+pub fn regenerate_doc_comments(directory: &str, verbose: bool, ignore_macros: bool) {
     // we start by storing files info
     let f = match OpenOptions::new().read(true).open(OUTPUT_COMMENT_FILE) {
         Ok(f) => f,
@@ -284,14 +307,45 @@ pub fn regenerate_doc_comments(directory: &str, verbose: bool) {
     };
     let reader = BufReader::new(f);
     let lines = reader.lines().map(|line| line.unwrap());
-    let mut infos = parse_cmts(lines);
+    let mut infos = parse_cmts(lines, ignore_macros);
     let ignores: &[&str] = &[];
-    loop_over_files(directory.as_ref(), &mut infos, &regenerate_comments, &ignores, verbose);
+
+    loop_over_files(directory.as_ref(), &mut infos, &|w, s, d| {
+        regenerate_comments(w, s, d, ignore_macros)
+    }, &ignores, verbose);
     save_remainings(&infos);
     // TODO: rewrite comments.cmts with remaining infos in regenerate_comments
 }
 
-pub fn parse_cmts<S, I>(mut lines: I)
+fn sub_erase_macro_path(ty: Option<Box<TypeStruct>>, is_parent: bool) -> Option<Box<TypeStruct>> {
+    match ty {
+        Some(ref t) if is_parent => {
+            if t.ty == Type::Macro {
+                sub_erase_macro_path(t.clone().parent, true)
+            } else {
+                let mut tmp = t.clone();
+                tmp.parent = sub_erase_macro_path(t.clone().parent, true);
+                Some(tmp)
+            }
+        },
+        Some(t) => {
+            let mut tmp = t.clone();
+            tmp.parent = sub_erase_macro_path(t.parent, true);
+            Some(tmp)
+        },
+        None => None,
+    }
+}
+
+fn erase_macro_path(ty: Option<TypeStruct>) -> Option<TypeStruct> {
+    if let Some(t) = ty {
+        Some((*sub_erase_macro_path(Some(Box::new(t)), false).unwrap()))
+    } else {
+        None
+    }
+}
+
+pub fn parse_cmts<S, I>(mut lines: I, ignore_macros: bool)
     -> HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<String>)>>
 where S: Deref<Target = str>,
       I: Iterator<Item = S> {
@@ -376,7 +430,7 @@ where S: Deref<Target = str>,
                 State::File {
                     file: file,
                     infos: infos,
-                    ty: ty,
+                    ty: if ignore_macros { erase_macro_path(ty) } else { ty },
                     comments: comments,
                 }
             }
