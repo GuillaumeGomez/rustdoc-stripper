@@ -16,14 +16,14 @@ use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
 
-pub fn loop_over_files<T, S>(path: &Path, data: &mut T, func: &Fn(&Path, &str, &mut T),
+pub fn loop_over_files<S>(path: &Path, func: &mut FnMut(&Path, &str),
     files_to_ignore: &[S], verbose: bool)
 where S: AsRef<Path> {
-    do_loop_over_files(path.as_ref(), path.as_ref(), data, func, files_to_ignore, verbose)
+    do_loop_over_files(path.as_ref(), path.as_ref(), func, files_to_ignore, verbose)
 }
 
-pub fn do_loop_over_files<T, S>(work_dir: &Path, path: &Path,  data: &mut T,
-    func: &Fn(&Path, &str, &mut T), files_to_ignore: &[S], verbose: bool)
+pub fn do_loop_over_files<S>(work_dir: &Path, path: &Path,
+    func: &mut FnMut(&Path, &str), files_to_ignore: &[S], verbose: bool)
 where S: AsRef<Path> {
     match fs::read_dir(path) {
         Ok(it) => {
@@ -34,8 +34,7 @@ where S: AsRef<Path> {
             }
             entries.sort();
             for entry in entries {
-                check_path_type(work_dir, &entry, data, func,
-                    files_to_ignore, verbose);
+                check_path_type(work_dir, &entry, func, files_to_ignore, verbose);
             }
         }
         Err(e) => {
@@ -44,7 +43,7 @@ where S: AsRef<Path> {
     }
 }
 
-fn check_path_type<T, S>(work_dir: &Path, path: &Path, data: &mut T, func: &Fn(&Path, &str, &mut T),
+fn check_path_type<S>(work_dir: &Path, path: &Path, func: &mut FnMut(&Path, &str),
     files_to_ignore: &[S], verbose: bool)
 where S: AsRef<Path> {
     match fs::metadata(path) {
@@ -53,7 +52,7 @@ where S: AsRef<Path> {
                 if path == Path::new("..") || path == Path::new(".") {
                     return;
                 }
-                do_loop_over_files(work_dir, path, data, func, files_to_ignore, verbose);
+                do_loop_over_files(work_dir, path, func, files_to_ignore, verbose);
             } else {
                 let path_suffix = strip_prefix(path, work_dir).unwrap();
                 let ignore = path == Path::new("./comments.cmts") ||
@@ -68,7 +67,7 @@ where S: AsRef<Path> {
                 if verbose {
                     println!("-> {}", path.display());
                 }
-                func(work_dir, path_suffix.to_str().unwrap(), data);
+                func(work_dir, path_suffix.to_str().unwrap());
             }
         }
         Err(e) => {

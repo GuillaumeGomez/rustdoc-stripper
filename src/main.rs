@@ -233,16 +233,16 @@ fn main() {
         }
         println!("Starting stripping...");
         if args.stdout_output {
-            let tmp = io::stdout();
-
-            loop_over_files(directory.as_ref(), &mut tmp.lock(), &|w, s, d| {
-                strip_comments(w, s, d, args.ignore_macros)
+            let stdout = io::stdout();
+            let mut stdout = stdout.lock();
+            loop_over_files(directory.as_ref(), &mut move |w, s| {
+                strip_comments(w, s, &mut stdout, args.ignore_macros)
             }, &files_to_ignore, verbose);
         } else {
             match OpenOptions::new().write(true).create(true).truncate(true).open(OUTPUT_COMMENT_FILE) {
                 Ok(mut f) => {
-                    loop_over_files(directory.as_ref(), &mut f, &|w, s, d| {
-                        strip_comments(w, s, d, args.ignore_macros)
+                    loop_over_files(directory.as_ref(), &mut |w, s| {
+                        strip_comments(w, s, &mut f, args.ignore_macros)
                     }, &files_to_ignore, verbose);
                 }
                 Err(e) => {
