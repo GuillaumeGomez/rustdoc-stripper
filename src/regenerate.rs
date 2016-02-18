@@ -310,8 +310,8 @@ pub fn regenerate_doc_comments(directory: &str, verbose: bool, ignore_macros: bo
     let mut infos = parse_cmts(lines, ignore_macros);
     let ignores: &[&str] = &[];
 
-    loop_over_files(directory.as_ref(), &mut infos, &|w, s, d| {
-        regenerate_comments(w, s, d, ignore_macros)
+    loop_over_files(directory.as_ref(), &mut |w, s| {
+        regenerate_comments(w, s, &mut infos, ignore_macros)
     }, &ignores, verbose);
     save_remainings(&infos);
     // TODO: rewrite comments.cmts with remaining infos in regenerate_comments
