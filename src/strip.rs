@@ -29,6 +29,10 @@ use stripper_interface::{
 };
 use types::{EventInfo, ParseResult};
 
+const STOP_CHARACTERS : &'static [char] = &['\t', '\n', '\r', '<', '{', ':', ';', '!'];
+const COMMENT_ID : &'static [&'static str] = &["//", "/*"];
+const DOC_COMMENT_ID : &'static [&'static str] = &["///", "/*!", "//!"];
+
 fn move_to(words: &[&str], it: &mut usize, limit: &str, line: &mut usize) {
     while (*it + 1) < words.len() && limit.contains(words[*it + 1]) == false {
         if words[*it] == "\n" {
@@ -118,24 +122,97 @@ fn get_mod<F: Write>(current: &Option<TypeStruct>, out_file: &mut F) -> bool {
     }
 }
 
+enum BlockKind<'a> {
+    Comment((String, String, &'a str)),
+    DocComment((String, String, &'a str)),
+    Other(&'a str),
+}
+
+fn get_three_parts<'a>(before: &'a str, after: &'a str, stop: &str) -> (String, String, &'a str) {
+    if let Some(pos) = after.find(stop) {
+        (before.to_owned(), after[0..pos].to_owned(), &after[pos..])
+    } else {
+        (before.to_owned(), after.to_owned(), &after[after.len() - 1..])
+    }
+}
+
+fn find_one_of<'a>(comments: &[&str], doc_comments: &[&str], text: &'a str) -> BlockKind<'a> {
+    let mut last_pos = 0;
+
+    loop {
+        let tmp_text = &text[last_pos..];
+        if let Some(pos) = tmp_text.find('/') {
+            last_pos = pos + last_pos;
+            for com in doc_comments {
+                if tmp_text.starts_with(com) {
+                    if &com[1..2] == "*" {
+                        return BlockKind::DocComment(get_three_parts(&text[0..last_pos], &text[last_pos..], "*/"))
+                    } else {
+                        return BlockKind::DocComment(get_three_parts(&text[0..last_pos], &text[last_pos..], "\n"))
+                    }
+                }
+            }
+            for com in comments {
+                if tmp_text.starts_with(com) {
+                    if &com[1..2] == "*" {
+                        return BlockKind::Comment(get_three_parts(&text[0..last_pos], &text[last_pos..], "*/"))
+                    } else {
+                        return BlockKind::Comment(get_three_parts(&text[0..last_pos], &text[last_pos..], "\n"))
+                    }
+                }
+            }
+        } else {
+            return BlockKind::Other(text)
+        }
+    }
+}
+
+fn transform_code(code: &str) -> String {
+    code.replace("{", " { ")
+        .replace("}", " } ")
+        .replace("///", "/// ")
+        .replace("//!", "//! ")
+        .replace("/*!", "/*! ")
+        .replace(":", " : ")
+        .replace(" :  : ", "::")
+        .replace("*/", " */")
+        .replace("\n", " \n ")
+        .replace("!(", " !! (")
+        .replace("!  {", " !? {")
+        .replace(",", ", ")
+        .replace("(", " (")
+}
+
+fn clean_input(mut s: &str) -> String {
+    let mut ret = String::new();
+    loop {
+        s = match find_one_of(COMMENT_ID, DOC_COMMENT_ID, s) {
+            BlockKind::Comment((s, comment, after)) => {
+                ret.push_str(&transform_code(&s));
+                for _ in 0..comment.split("\n").count() {
+                    ret.push_str(" \n ");
+                }
+                after
+            },
+            BlockKind::DocComment((s, doc_comment, after)) => {
+                ret.push_str(&transform_code(&s));
+                ret.push_str(&doc_comment);
+                after
+            },
+            BlockKind::Other(s) => {
+                ret.push_str(&transform_code(s));
+                return ret
+            },
+        };
+    }
+}
+
 pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
     match File::open(path) {
         Ok(mut f) => {
             let mut b_content = String::new();
             f.read_to_string(&mut b_content).unwrap();
-            let content = b_content.replace("{", " { ")
-                                   .replace("}", " } ")
-                                   .replace("///", "/// ")
-                                   .replace("//!", "//! ")
-                                   .replace("/*!", "/*! ")
-                                   .replace(":", " : ")
-                                   .replace(" :  : ", "::")
-                                   .replace("*/", " */")
-                                   .replace("\n", " \n ")
-                                   .replace("!(", " !! (")
-                                   .replace("!  {", " !? {")
-                                   .replace(",", ", ")
-                                   .replace("(", " (");
+            let content = clean_input(&b_content);
             let b_content : Vec<String> = b_content.split('\n').map(|s| s.to_owned()).collect();
             let words : Vec<&str> = content.split(' ').filter(|s| s.len() > 0).collect();
             let mut it = 0;
@@ -192,7 +269,7 @@ pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
                                                                 TypeStruct::new(
                                                                     Type::from(words[it]),
                                                                                get_before(words[it + 1],
-                                                                                          &vec!('\t', '\n', '\r', '<', '{', ':', ';', '!'))
+                                                                                          STOP_CHARACTERS)
                                                                                ))));
                         it += 1;
                     }
