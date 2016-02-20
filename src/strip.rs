@@ -316,7 +316,7 @@ fn unformat_comment(c: &str) -> String {
             s = s.replace(to_remove, "");
         }
         if s.starts_with(" ") {
-            s.as_str()[1..].to_owned()
+            (&s)[1..].to_owned()
         } else {
             s
         }
