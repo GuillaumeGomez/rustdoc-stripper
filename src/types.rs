@@ -13,8 +13,6 @@
 // limitations under the License.
 
 use std::fmt::{Debug, Display, Error, Formatter};
-use std::cmp::PartialEq;
-use std::ops::Deref;
 use std::borrow::Borrow;
 
 pub const OUTPUT_COMMENT_FILE : &'static str = "comments.cmts";
@@ -65,6 +63,7 @@ impl Debug for EventType {
     }
 }
 
+#[derive(Clone, PartialEq)]
 pub struct TypeStruct {
     pub ty: Type,
     pub parent: Option<Box<TypeStruct>>,
@@ -114,29 +113,6 @@ impl TypeStruct {
             }
         }
         recur(&self.parent, false, ignore_macros)
-    }
-}
-
-impl PartialEq for TypeStruct {
-    fn eq(&self, other: &TypeStruct) -> bool {
-        self.ty == other.ty &&
-        self.name == other.name &&
-        self.args == other.args &&
-        self.parent == other.parent
-    }
-}
-
-impl Clone for TypeStruct {
-    fn clone(&self) -> TypeStruct {
-        TypeStruct {
-            ty: self.ty,
-            name: self.name.clone(),
-            args: self.args.clone(),
-            parent: match self.parent {
-                Some(ref p) => Some(Box::new(p.deref().clone())),
-                None => None,
-            }
-        }
     }
 }
 
