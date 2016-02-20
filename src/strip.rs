@@ -133,6 +133,7 @@ fn find_one_of<'a>(comments: &[&str], doc_comments: &[&str], text: &'a str) -> B
     loop {
         let tmp_text = &text[last_pos..];
         if let Some(pos) = tmp_text.find('/') {
+            let tmp_text = &tmp_text[pos..];
             last_pos = pos + last_pos;
             for com in doc_comments {
                 if tmp_text.starts_with(com) {
@@ -154,9 +155,8 @@ fn find_one_of<'a>(comments: &[&str], doc_comments: &[&str], text: &'a str) -> B
                     }
                 }
             }
-        } else {
-            return BlockKind::Other(text)
         }
+        return BlockKind::Other(text)
     }
 }
 
@@ -179,12 +179,14 @@ fn clean_input(mut s: &str) -> String {
         s = match find_one_of(COMMENT_ID, DOC_COMMENT_ID, s) {
             BlockKind::Comment((s, comment, after)) => {
                 ret.push_str(&transform_code(&s));
+                println!("=> comment: {:?}", comment);
                 for _ in 0..comment.split("\n").count() - 1 {
                     ret.push_str(" \n ");
                 }
                 after
             },
             BlockKind::DocComment((s, doc_comment, after)) => {
+                println!("=> doc: {:?}", doc_comment);
                 ret.push_str(&transform_code(&s));
                 ret.push_str(&doc_comment);
                 after
