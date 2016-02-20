@@ -61,15 +61,15 @@ mod Bar {
 fn get_basic_md(file: &str) -> String {
     format!(r#"<!-- file {} -->
 <!-- struct Foo -->
- struct Foo comment
+struct Foo comment
 <!-- struct Foo§variant A -->
- Foo comment
- fn some_func(a: u32,
-              b: u32) {{}}
+Foo comment
+fn some_func(a: u32,
+             b: u32) {{}}
 <!-- mod Bar§macro test!§struct SuperFoo -->
- struct inside macro
+struct inside macro
 <!-- mod Bar§macro test!§macro sub_test!§struct FooFoo -->
- and another one!
+and another one!
 "#, file)
 }
 
@@ -89,7 +89,7 @@ glib_wrapper! {
     /// Dialog boxes are a convenient way to prompt the user for a small amount
     /// of input, e.g. to display a message, ask a question, or anything else
     /// that does not require extensive effort on the user’s part.
-    /// 
+    ///
     /// ```
     /// {
     ///  dialog = gtk_dialog_new_with_buttons ("Message",
@@ -109,7 +109,7 @@ glib_wrapper! {
 
 impl Dialog {
     /// Creates a new dialog box.
-    /// 
+    ///
     /// Widgets should not be packed into this `Window`
     /// directly, but into the `vbox` and `action_area`, as described above.
     ///
@@ -186,83 +186,83 @@ pub trait DialogExt {
 fn get_basic2_md(file: &str) -> String {
     format!(r#"<!-- file {} -->
 <!-- struct Dialog -->
- Dialog boxes are a convenient way to prompt the user for a small amount
- of input, e.g. to display a message, ask a question, or anything else
- that does not require extensive effort on the user’s part.
- 
- ```
- {{
-  dialog = gtk_dialog_new_with_buttons ("Message",
-                                        parent,
-                                        flags,
-                                        _("_OK"),
-                                        GTK_RESPONSE_NONE,
-                                        NULL);
- }}
- ```
+Dialog boxes are a convenient way to prompt the user for a small amount
+of input, e.g. to display a message, ask a question, or anything else
+that does not require extensive effort on the user’s part.
+
+```
+{{
+ dialog = gtk_dialog_new_with_buttons ("Message",
+                                       parent,
+                                       flags,
+                                       _("_OK"),
+                                       GTK_RESPONSE_NONE,
+                                       NULL);
+}}
+```
 <!-- impl Dialog§fn new -->
- Creates a new dialog box.
- 
- Widgets should not be packed into this `Window`
- directly, but into the `vbox` and `action_area`, as described above.
+Creates a new dialog box.
 
- # Returns
+Widgets should not be packed into this `Window`
+directly, but into the `vbox` and `action_area`, as described above.
 
- the new dialog as a `Widget`
+# Returns
+
+the new dialog as a `Widget`
 <!-- trait DialogExt -->
- Trait containing all `Dialog` methods.
+Trait containing all `Dialog` methods.
 <!-- trait DialogExt§fn add_action_widget -->
- Adds an activatable widget to the action area of a `Dialog`,
- connecting a signal handler that will emit the `Dialog::response`
- signal on the dialog when the widget is activated. The widget is
- appended to the end of the dialog’s action area. If you want to add a
- non-activatable widget, simply pack it into the `action_area` field
- of the `Dialog` struct.
+Adds an activatable widget to the action area of a `Dialog`,
+connecting a signal handler that will emit the `Dialog::response`
+signal on the dialog when the widget is activated. The widget is
+appended to the end of the dialog’s action area. If you want to add a
+non-activatable widget, simply pack it into the `action_area` field
+of the `Dialog` struct.
 <!-- trait DialogExt§fn add_button -->
- Adds a button with the given text
+Adds a button with the given text
 "#, file)
 }
 
 const BASIC2_MD: &'static str = r#"<!-- file * -->
 <!-- struct Dialog -->
- Dialog boxes are a convenient way to prompt the user for a small amount
- of input, e.g. to display a message, ask a question, or anything else
- that does not require extensive effort on the user’s part.
- 
- ```
- {
-  dialog = gtk_dialog_new_with_buttons ("Message",
-                                        parent,
-                                        flags,
-                                        _("_OK"),
-                                        GTK_RESPONSE_NONE,
-                                        NULL);
- }
- ```
+Dialog boxes are a convenient way to prompt the user for a small amount
+of input, e.g. to display a message, ask a question, or anything else
+that does not require extensive effort on the user’s part.
+
+```
+{
+ dialog = gtk_dialog_new_with_buttons ("Message",
+                                       parent,
+                                       flags,
+                                       _("_OK"),
+                                       GTK_RESPONSE_NONE,
+                                       NULL);
+}
+```
 <!-- impl Dialog§fn new -->
- Creates a new dialog box.
- 
- Widgets should not be packed into this `Window`
- directly, but into the `vbox` and `action_area`, as described above.
+Creates a new dialog box.
 
- # Returns
+Widgets should not be packed into this `Window`
+directly, but into the `vbox` and `action_area`, as described above.
 
- the new dialog as a `Widget`
+# Returns
+
+the new dialog as a `Widget`
 <!-- impl Dialog§fn new_with_buttons -->
- Creates a new `Dialog` with title `title` (or `None` for the default
- title; see `Window::set_title`) and transient parent `parent` (or
- `None` for none; see `Window::set_transient_for`).
+Creates a new `Dialog` with title `title` (or `None` for the default
+title; see `Window::set_title`) and transient parent `parent` (or
+`None` for none; see `Window::set_transient_for`).
 <!-- trait DialogExt -->
- Trait containing all `Dialog` methods.
+Trait containing all `Dialog` methods.
 <!-- trait DialogExt§fn add_action_widget -->
- Adds an activatable widget to the action area of a `Dialog`,
- connecting a signal handler that will emit the `Dialog::response`
- signal on the dialog when the widget is activated. The widget is
- appended to the end of the dialog’s action area. If you want to add a
- non-activatable widget, simply pack it into the `action_area` field
- of the `Dialog` struct.
+Adds an activatable widget to the action area of a `Dialog`,
+connecting a signal handler that will emit the `Dialog::response`
+signal on the dialog when the widget is activated. The widget is
+appended to the end of the dialog’s action area. If you want to add a
+non-activatable widget, simply pack it into the `action_area` field
+of the `Dialog` struct.
 <!-- trait DialogExt§fn add_button -->
- Adds a button with the given text
+Adds a button with the given text
 "#;
 
 const BASIC3 : &'static str = r#"///struct Foo comment
@@ -270,6 +270,10 @@ struct Foo;
 "#;
 
 const BASIC3_STRIPPED : &'static str = r#"struct Foo;
+"#;
+
+const BASIC3_REGEN : &'static str = r#"/// struct Foo comment
+struct Foo;
 "#;
 
 fn get_basic3_md(file: &str) -> String {
@@ -381,5 +385,5 @@ fn test3_regeneration() {
     stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
                                           &temp_dir.path().join(comment_file).to_str().unwrap(),
                                           false);
-    compare_files(BASIC3, &temp_dir.path().join(test_file));
+    compare_files(BASIC3_REGEN, &temp_dir.path().join(test_file));
 }
