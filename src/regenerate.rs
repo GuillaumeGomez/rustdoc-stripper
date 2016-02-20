@@ -32,6 +32,15 @@ fn gen_indent(indent: usize) -> String {
     iter::repeat("    ").take(indent).collect::<Vec<&str>>().join("")
 }
 
+fn gen_indent_from(from: &str) -> String {
+    for (i, c) in from.chars().enumerate() {
+        if c != ' ' && c != '\t' {
+            return gen_indent(i / 4);
+        }
+    }
+    String::new()
+}
+
 fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                           to_find: &Option<TypeStruct>,
                           mut line: usize,
@@ -82,9 +91,15 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                     0
                 };
                 if file_comment {
-                    original_content.insert(line + *decal, format!("{}//!{}", &gen_indent(depth), &comment));
+                    original_content.insert(line + *decal, format!("{}//!{}",
+                                                                   &gen_indent(depth),
+                                                                   &comment));
                 } else {
-                    original_content.insert(line + *decal, format!("{}///{}", &gen_indent(depth), &comment));
+                    let tmp = original_content[line + *decal].clone();
+                    original_content.insert(line + *decal,
+                                            format!("{}///{}",
+                                                    &gen_indent_from(&tmp),
+                                                    &comment));
                 }
                 *decal += 1;
             }
