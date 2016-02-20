@@ -20,6 +20,7 @@ use std::path::Path;
 use strip;
 use types::ParseResult;
 use utils::{join, loop_over_files};
+use std::iter;
 
 use stripper_interface::{
     TypeStruct,
@@ -28,14 +29,22 @@ use stripper_interface::{
     MOD_COMMENT,
     FILE_COMMENT,
     FILE,
+    END_INFO,
+    write_comment,
+    write_file,
 };
 use types::OUTPUT_COMMENT_FILE;
+
+fn gen_indent(indent: usize) -> String {
+    iter::repeat("    ").take(indent).collect::<Vec<&str>>().join("")
+}
 
 fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                           to_find: &Option<TypeStruct>,
                           mut line: usize,
                           decal: &mut usize,
-                          original_content: &mut Vec<String>) -> Option<usize> {
+                          original_content: &mut Vec<String>,
+                          ignore_macros: bool) -> Option<usize> {
     let mut pos = 0;
 
     while pos < elements.len() {
@@ -69,15 +78,20 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                 file_comment = true;
             } else {
                 while line > 0 && (line + *decal) > 0 &&
-                      original_content[line + *decal - 1].trim().starts_with("#") {
+                      original_content[line + *decal - 1].trim_left().starts_with("#") {
                     line -= 1;
                 }
             }
             for comment in &elements[pos].1 {
-                if file_comment {
-                    original_content.insert(line + *decal, comment[FILE_COMMENT.len()..].to_owned());
+                let depth = if let Some(ref e) = elements[pos].0 {
+                    e.get_depth(ignore_macros)
                 } else {
-                    original_content.insert(line + *decal, comment.clone());
+                    0
+                };
+                if file_comment {
+                    original_content.insert(line + *decal, format!("{}//! {}", &gen_indent(depth), &comment));
+                } else {
+                    original_content.insert(line + *decal, format!("{}/// {}", &gen_indent(depth), &comment));
                 }
                 *decal += 1;
             }
@@ -135,7 +149,7 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
             }
             if it < parse_result.original_content.len() {
                 for line in &entry.1 {
-                    parse_result.original_content.insert(it, line.clone());
+                    parse_result.original_content.insert(it, format!("//! {}", &line));
                     decal += 1;
                     it += 1;
                 }
@@ -168,7 +182,8 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                     match get_corresponding_type(&elements, &tmp,
                                                  parse_result.event_list[it].line,
                                                  &mut decal,
-                                                 &mut parse_result.original_content) {
+                                                 &mut parse_result.original_content,
+                                                 ignore_macros) {
                         Some(l) => { elements.remove(l); },
                         None => {}
                     };
@@ -190,7 +205,8 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                                 match get_corresponding_type(&elements, &cc,
                                                              parse_result.event_list[it].line,
                                                              &mut decal,
-                                                             &mut parse_result.original_content) {
+                                                             &mut parse_result.original_content,
+                                                             ignore_macros) {
                                     Some(l) => { elements.remove(l); },
                                     None => {}
                                 }
@@ -213,7 +229,8 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                 match get_corresponding_type(&elements, &current,
                                              parse_result.event_list[it].line,
                                              &mut decal,
-                                             &mut parse_result.original_content) {
+                                             &mut parse_result.original_content,
+                                             ignore_macros) {
                     Some(l) => { elements.remove(l); },
                     None => {}
                 };
@@ -241,7 +258,7 @@ fn rewrite_file(path: &Path, o_content: &[String]) {
 }
 
 fn parse_mod_line(line: &str) -> Option<TypeStruct> {
-    let line = line.replace(MOD_COMMENT, "");
+    let line = line.replace(MOD_COMMENT, "").replace(END_INFO, "");
     let parts : Vec<&str> = line.split("§").collect();
     let mut current = None;
 
@@ -277,11 +294,11 @@ fn save_remainings(infos: &HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<
                 }
                 // Set the name to "*" for entries that ignore file name
                 let key = key.as_ref().map(|s| &s[..]).unwrap_or("*");
-                let _ = writeln!(out_file, "{}{}", FILE, key);
+                let _ = writeln!(out_file, "{}", &write_file(key));
                 for line in content {
                     match line.0 {
                         Some(ref d) => {
-                            let _ = writeln!(out_file, "{}{:?}\n{}", MOD_COMMENT, d, join(&line.1, "\n"));
+                            let _ = writeln!(out_file, "{}", write_comment(d, &join(&line.1, "\n"), false));
                         }
                         None => {}
                     }
@@ -362,7 +379,7 @@ where S: Deref<Target = str>,
     // The "*" entries are to be applied regardless of file name
     fn line_file(line: &str) -> Option<Option<String>> {
         if line.starts_with(FILE) {
-            let name = &line[FILE.len()..];
+            let name = &line[FILE.len()..].replace(END_INFO, "");
             if name == "*" {
                 Some(None)
             }
@@ -409,8 +426,6 @@ where S: Deref<Target = str>,
                             infos.push((Some(ty), comments));
                             comments = vec![];
                         }
-                    } else {
-                        comments.push(line[FILE_COMMENT.len()..].to_owned());
                     }
                 } else if line.starts_with(MOD_COMMENT) {
                     if !comments.is_empty() {
