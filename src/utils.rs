@@ -15,6 +15,13 @@
 use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
+use consts::{
+    MOD_COMMENT,
+    FILE_COMMENT,
+    FILE,
+    END_INFO,
+};
+use types::TypeStruct;
 
 pub fn loop_over_files<S>(path: &Path, func: &mut FnMut(&Path, &str),
     files_to_ignore: &[S], verbose: bool)
@@ -118,4 +125,21 @@ fn iter_after<A, I, J>(mut iter: I, mut prefix: J) -> Option<I>
         }
         iter = iter_next;
     }
+}
+
+pub fn write_comment(id: &TypeStruct, comment: &str,
+                     ignore_macro: bool) -> String {
+    if ignore_macro {
+        format!("{}{}{}\n{}", MOD_COMMENT, id, END_INFO, comment)
+    } else {
+        format!("{}{:?}{}\n{}", MOD_COMMENT, id, END_INFO, comment)
+    }
+}
+
+pub fn write_file_comment(comment: &str) -> String {
+    format!("{}{}\n{}", FILE_COMMENT, END_INFO, comment)
+}
+
+pub fn write_file(file: &str) -> String {
+    format!("{}{}{}", FILE, file, END_INFO)
 }

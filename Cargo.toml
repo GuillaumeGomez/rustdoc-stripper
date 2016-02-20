@@ -4,9 +4,6 @@ version = "0.1.0"
 authors = ["Guillaume Gomez <guillaume1.gomez@gmail.com>"]
 license = "Apache-2.0"
 
-[dependencies]
-stripper_interface = "0.0.6"
-
 [lib]
 name = "stripper_lib"
 crate-type = ["dylib", "rlib"]
