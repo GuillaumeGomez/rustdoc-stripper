@@ -28,6 +28,7 @@ use stripper_interface::{
     MOD_COMMENT,
     FILE_COMMENT,
     FILE,
+    END_INFO,
 };
 use types::OUTPUT_COMMENT_FILE;
 
@@ -241,7 +242,7 @@ fn rewrite_file(path: &Path, o_content: &[String]) {
 }
 
 fn parse_mod_line(line: &str) -> Option<TypeStruct> {
-    let line = line.replace(MOD_COMMENT, "");
+    let line = line.replace(MOD_COMMENT, "").replace(END_INFO, "");
     let parts : Vec<&str> = line.split("§").collect();
     let mut current = None;
 
@@ -281,7 +282,7 @@ fn save_remainings(infos: &HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<
                 for line in content {
                     match line.0 {
                         Some(ref d) => {
-                            let _ = writeln!(out_file, "{}{:?}\n{}", MOD_COMMENT, d, join(&line.1, "\n"));
+                            let _ = writeln!(out_file, "{}{:?}{}\n{}", MOD_COMMENT, d, END_INFO, join(&line.1, "\n"));
                         }
                         None => {}
                     }
@@ -362,7 +363,7 @@ where S: Deref<Target = str>,
     // The "*" entries are to be applied regardless of file name
     fn line_file(line: &str) -> Option<Option<String>> {
         if line.starts_with(FILE) {
-            let name = &line[FILE.len()..];
+            let name = &line[FILE.len()..].replace(END_INFO, "");
             if name == "*" {
                 Some(None)
             }
