@@ -124,10 +124,6 @@ impl PartialEq for TypeStruct {
         self.args == other.args &&
         self.parent == other.parent
     }
-
-    fn ne(&self, other: &TypeStruct) -> bool {
-        !self.eq(other)
-    }
 }
 
 impl Clone for TypeStruct {
@@ -141,16 +137,6 @@ impl Clone for TypeStruct {
                 None => None,
             }
         }
-    }
-
-    fn clone_from(&mut self, source: &TypeStruct) {
-        self.ty = source.ty;
-        self.name = source.name.clone();
-        self.args = source.args.clone();
-        self.parent = match source.parent {
-            Some(ref p) => Some(Box::new(p.deref().clone())),
-            None => None,
-        };
     }
 }
 
