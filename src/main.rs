@@ -50,9 +50,9 @@ fn print_help() {
     println!(r#"Available options for rustdoc-stripper:
     -h | --help             : Displays this help
     -s | --strip            : Strips the specified folder's files and create a file
-                              with rustdoc information (comments.cmts by default)
+                              with rustdoc information (comments.md by default)
     -g | --regenerate       : Recreate files with rustdoc comments from reading
-                              rustdoc information file (comments.cmts by default)
+                              rustdoc information file (comments.md by default)
     -n | --no-file-output   : Display rustdoc information directly on stdout
     -i | --ignore [filename]: Ignore the specified file, can be repeated as much
                               as needed, only used when stripping files, ignored
@@ -231,7 +231,7 @@ fn main() {
     }
     if wait_out_file {
         println!("[-o | --comment-file] option expects a file path. Example:");
-        println!("./rustdoc-stripper -o src/out.cmts");
+        println!("./rustdoc-stripper -o src/out.md");
         return;
     }
 
