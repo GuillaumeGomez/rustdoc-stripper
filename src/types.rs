@@ -15,8 +15,6 @@
 use std::fmt::{Debug, Display, Error, Formatter};
 use std::borrow::Borrow;
 
-pub const OUTPUT_COMMENT_FILE : &'static str = "comments.cmts";
-
 pub struct ParseResult {
     pub event_list: Vec<EventInfo>,
     pub comment_lines: Vec<usize>,

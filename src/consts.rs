@@ -16,3 +16,4 @@ pub const MOD_COMMENT : &'static str = "<!-- ";
 pub const FILE_COMMENT : &'static str = "<!-- file_comment ";
 pub const FILE : &'static str = "<!-- file ";
 pub const END_INFO : &'static str = " -->";
+pub const OUTPUT_COMMENT_FILE : &'static str = "comments.cmts";
