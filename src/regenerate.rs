@@ -20,6 +20,7 @@ use std::path::Path;
 use strip;
 use types::ParseResult;
 use utils::{join, loop_over_files};
+use std::iter;
 
 use stripper_interface::{
     TypeStruct,
@@ -32,11 +33,16 @@ use stripper_interface::{
 };
 use types::OUTPUT_COMMENT_FILE;
 
+fn gen_indent(indent: usize) -> String {
+    iter::repeat("    ").take(indent).collect::<Vec<&str>>().join("")
+}
+
 fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                           to_find: &Option<TypeStruct>,
                           mut line: usize,
                           decal: &mut usize,
-                          original_content: &mut Vec<String>) -> Option<usize> {
+                          original_content: &mut Vec<String>,
+                          ignore_macros: bool) -> Option<usize> {
     let mut pos = 0;
 
     while pos < elements.len() {
@@ -70,15 +76,20 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                 file_comment = true;
             } else {
                 while line > 0 && (line + *decal) > 0 &&
-                      original_content[line + *decal - 1].trim().starts_with("#") {
+                      original_content[line + *decal - 1].trim_left().starts_with("#") {
                     line -= 1;
                 }
             }
             for comment in &elements[pos].1 {
-                if file_comment {
-                    original_content.insert(line + *decal, comment[FILE_COMMENT.len()..].to_owned());
+                let depth = if let Some(ref e) = elements[pos].0 {
+                    e.get_depth(ignore_macros)
                 } else {
-                    original_content.insert(line + *decal, comment.clone());
+                    0
+                };
+                if file_comment {
+                    original_content.insert(line + *decal, format!("{}//! {}", &gen_indent(depth), &comment[FILE_COMMENT.len()..]));
+                } else {
+                    original_content.insert(line + *decal, format!("{}/// {}", &gen_indent(depth), &comment));
                 }
                 *decal += 1;
             }
@@ -136,7 +147,7 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
             }
             if it < parse_result.original_content.len() {
                 for line in &entry.1 {
-                    parse_result.original_content.insert(it, line.clone());
+                    parse_result.original_content.insert(it, format!("//! {}", &line));
                     decal += 1;
                     it += 1;
                 }
@@ -169,7 +180,8 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                     match get_corresponding_type(&elements, &tmp,
                                                  parse_result.event_list[it].line,
                                                  &mut decal,
-                                                 &mut parse_result.original_content) {
+                                                 &mut parse_result.original_content,
+                                                 ignore_macros) {
                         Some(l) => { elements.remove(l); },
                         None => {}
                     };
@@ -191,7 +203,8 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                                 match get_corresponding_type(&elements, &cc,
                                                              parse_result.event_list[it].line,
                                                              &mut decal,
-                                                             &mut parse_result.original_content) {
+                                                             &mut parse_result.original_content,
+                                                             ignore_macros) {
                                     Some(l) => { elements.remove(l); },
                                     None => {}
                                 }
@@ -214,7 +227,8 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                 match get_corresponding_type(&elements, &current,
                                              parse_result.event_list[it].line,
                                              &mut decal,
-                                             &mut parse_result.original_content) {
+                                             &mut parse_result.original_content,
+                                             ignore_macros) {
                     Some(l) => { elements.remove(l); },
                     None => {}
                 };
@@ -410,8 +424,6 @@ where S: Deref<Target = str>,
                             infos.push((Some(ty), comments));
                             comments = vec![];
                         }
-                    } else {
-                        comments.push(line[FILE_COMMENT.len()..].to_owned());
                     }
                 } else if line.starts_with(MOD_COMMENT) {
                     if !comments.is_empty() {

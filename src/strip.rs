@@ -316,6 +316,19 @@ pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
     }
 }
 
+fn unformat_comment(c: &str) -> String {
+    let mut line = c.to_owned();
+
+    for to_remove in DOC_COMMENT_ID {
+        line = line.replace(to_remove, "");
+    }
+    for to_remove in COMMENT_ID {
+        line = line.replace(to_remove, "");
+    }
+
+    line.replace("*/", "").split("\n").into_iter().map(|s| s.trim_left()).collect::<Vec<&str>>().join("\n")
+}
+
 pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
                                 ignore_macros: bool) {
     let full_path = work_dir.join(path);
@@ -350,10 +363,10 @@ pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
                             exit(1);
                         }
                         it += 1;
-                        let mut comments = format!("{}{}{}\n", FILE_COMMENT, c, END_INFO);
+                        let mut comments = format!("{}{}\n{}\n", FILE_COMMENT, END_INFO, unformat_comment(c));
                         while match parse_result.event_list[it].event {
                             EventType::FileComment(ref c) => {
-                                comments.push_str(&format!("{}{}{}\n", FILE_COMMENT, c, END_INFO));
+                                comments.push_str(&format!("{}\n", unformat_comment(c)));
                                 true
                             }
                             _ => false,
@@ -398,10 +411,10 @@ pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
                                                         let tmp = add_to_type_scope(&current, &Some(copy));
                                                         if ignore_macros {
                                                             write!(out_file, "{}{}{}\n{}", MOD_COMMENT, tmp.unwrap(), END_INFO,
-                                                                   comments).unwrap();
+                                                                   unformat_comment(&comments)).unwrap();
                                                         } else {
                                                             write!(out_file, "{}{:?}{}\n{}", MOD_COMMENT, tmp.unwrap(), END_INFO,
-                                                                   comments).unwrap();
+                                                                   unformat_comment(&comments)).unwrap();
                                                         }
                                                         false
                                                     }
@@ -425,9 +438,11 @@ pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
                                     _ => {
                                         let tmp = add_to_type_scope(&current, &Some(t.clone()));
                                         if ignore_macros {
-                                            write!(out_file, "{}{}{}\n{}", MOD_COMMENT, tmp.unwrap(), END_INFO, comments).unwrap();
+                                            write!(out_file, "{}{}{}\n{}", MOD_COMMENT, tmp.unwrap(), END_INFO,
+                                                   unformat_comment(&comments)).unwrap();
                                         } else {
-                                            write!(out_file, "{}{:?}{}\n{}", MOD_COMMENT, tmp.unwrap(), END_INFO, comments).unwrap();
+                                            write!(out_file, "{}{:?}{}\n{}", MOD_COMMENT, tmp.unwrap(), END_INFO,
+                                                   unformat_comment(&comments)).unwrap();
                                         }
                                         false
                                     }
