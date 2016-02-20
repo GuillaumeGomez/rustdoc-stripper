@@ -1,4 +1,4 @@
-// Copyright 2015 Gomez Guillaume
+// Copyright 2016 Gomez Guillaume
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,32 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod regenerate;
-pub mod strip;
-pub mod types;
-pub mod utils;
-mod consts;
-
-pub use regenerate::{
-    parse_cmts,
-    regenerate_comments,
-    regenerate_doc_comments,
-};
-pub use strip::strip_comments;
-pub use consts::{
-    FILE,
-    FILE_COMMENT,
-    MOD_COMMENT,
-    END_INFO,
-};
-pub use types::{
-    EventType,
-    Type,
-    TypeStruct,
-};
-pub use utils::{
-    write_comment,
-    write_file,
-    write_file_comment,
-    loop_over_files,
-};
+pub const MOD_COMMENT : &'static str = "<!-- ";
+pub const FILE_COMMENT : &'static str = "<!-- file_comment ";
+pub const FILE : &'static str = "<!-- file ";
+pub const END_INFO : &'static str = " -->";

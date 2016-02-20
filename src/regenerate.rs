@@ -18,20 +18,14 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::path::Path;
 use strip;
-use types::ParseResult;
-use utils::{join, loop_over_files};
+use types::{EventType, ParseResult, Type, TypeStruct};
+use utils::{join, loop_over_files, write_comment, write_file};
 use std::iter;
-
-use stripper_interface::{
-    TypeStruct,
-    EventType,
-    Type,
+use consts::{
     MOD_COMMENT,
     FILE_COMMENT,
     FILE,
     END_INFO,
-    write_comment,
-    write_file,
 };
 use types::OUTPUT_COMMENT_FILE;
 

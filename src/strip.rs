@@ -17,17 +17,8 @@ use std::io::{self, BufRead, Write, Read};
 use std::path::Path;
 use std::process::exit;
 use std::ops::Deref;
-use utils::join;
-
-use stripper_interface::{
-    EventType,
-    TypeStruct,
-    Type,
-    write_comment,
-    write_file,
-    write_file_comment,
-};
-use types::{EventInfo, ParseResult};
+use utils::{join, write_comment, write_file, write_file_comment};
+use types::{EventInfo, EventType, ParseResult, Type, TypeStruct};
 
 const STOP_CHARACTERS : &'static [char] = &['\t', '\n', '\r', '<', '{', ':', ';', '!'];
 const COMMENT_ID : &'static [&'static str] = &["//", "/*"];
