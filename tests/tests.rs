@@ -83,7 +83,12 @@ fn compare_files(expected_content: &str, file: &str) {
     let mut f = File::open(file).expect("compare_files '{}'");
     let mut buf = String::new();
     f.read_to_string(&mut buf).unwrap();
-    assert_eq!(expected_content, &buf);
+    println!("");
+    for (l, r) in expected_content.lines().zip(buf.lines()) {
+        assert_eq!(l, r);
+        println!("{}", l);
+    }
+    assert!(expected_content == &buf);
 }
 
 #[allow(unused_must_use)]
