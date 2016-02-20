@@ -30,6 +30,8 @@ use stripper_interface::{
     FILE_COMMENT,
     FILE,
     END_INFO,
+    write_comment,
+    write_file,
 };
 use types::OUTPUT_COMMENT_FILE;
 
@@ -87,7 +89,7 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                     0
                 };
                 if file_comment {
-                    original_content.insert(line + *decal, format!("{}//! {}", &gen_indent(depth), &comment[FILE_COMMENT.len()..]));
+                    original_content.insert(line + *decal, format!("{}//! {}", &gen_indent(depth), &comment));
                 } else {
                     original_content.insert(line + *decal, format!("{}/// {}", &gen_indent(depth), &comment));
                 }
@@ -292,11 +294,11 @@ fn save_remainings(infos: &HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<
                 }
                 // Set the name to "*" for entries that ignore file name
                 let key = key.as_ref().map(|s| &s[..]).unwrap_or("*");
-                let _ = writeln!(out_file, "{}{}", FILE, key);
+                let _ = writeln!(out_file, "{}", &write_file(key));
                 for line in content {
                     match line.0 {
                         Some(ref d) => {
-                            let _ = writeln!(out_file, "{}{:?}{}\n{}", MOD_COMMENT, d, END_INFO, join(&line.1, "\n"));
+                            let _ = writeln!(out_file, "{}", write_comment(d, &join(&line.1, "\n"), false));
                         }
                         None => {}
                     }
