@@ -316,16 +316,19 @@ pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
 }
 
 fn unformat_comment(c: &str) -> String {
-    let mut line = c.to_owned();
+    fn remove_prepend(s: &str) -> String {
+        let mut s = s.to_owned();
 
-    for to_remove in DOC_COMMENT_ID {
-        line = line.replace(to_remove, "");
-    }
-    for to_remove in COMMENT_ID {
-        line = line.replace(to_remove, "");
+        for to_remove in DOC_COMMENT_ID {
+            s = s.replace(to_remove, "");
+        }
+        for to_remove in COMMENT_ID {
+            s = s.replace(to_remove, "");
+        }
+        s
     }
 
-    line.replace("*/", "").split("\n").into_iter().map(|s| s.trim_left()).collect::<Vec<&str>>().join("\n")
+    c.replace("*/", "").split("\n").into_iter().map(|s| remove_prepend(s.trim_left())).collect::<Vec<String>>().join("\n")
 }
 
 pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
