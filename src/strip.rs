@@ -179,14 +179,12 @@ fn clean_input(mut s: &str) -> String {
         s = match find_one_of(COMMENT_ID, DOC_COMMENT_ID, s) {
             BlockKind::Comment((s, comment, after)) => {
                 ret.push_str(&transform_code(&s));
-                println!("=> comment: {:?}", comment);
                 for _ in 0..comment.split("\n").count() - 1 {
                     ret.push_str(" \n ");
                 }
                 after
             },
             BlockKind::DocComment((s, doc_comment, after)) => {
-                println!("=> doc: {:?}", doc_comment);
                 ret.push_str(&transform_code(&s));
                 ret.push_str(&doc_comment);
                 after

@@ -283,6 +283,50 @@ struct Foo comment
 "#, file)
 }
 
+const BASIC4 : &'static str = r#"// Copyright 2013-2015, The Gtk-rs Project Developers.
+// See the COPYRIGHT file at the top-level directory of this distribution.
+// Licensed under the MIT license, see the LICENSE file or <http://opensource.org/licenses/MIT>
+
+use glib::translate::*;
+use ffi;
+
+use glib::object::Downcast;
+use Widget;
+
+glib_wrapper! {
+    pub struct Socket(Object<ffi::GtkSocket>): Widget, ::Container, ::Buildable;
+
+    match fn {
+        get_type => || ffi::gtk_socket_get_type(),
+    }
+}
+
+impl Socket {
+    pub fn new() -> Socket {
+        assert_initialized_main_thread!();
+        unsafe { Widget::from_glib_none(ffi::gtk_socket_new()).downcast_unchecked() }
+    }
+
+    /*pub fn add_id(&self, window: Window) {
+        unsafe { ffi::gtk_socket_add_id(self.to_glib_none().0, window) };
+    }
+
+    pub fn get_id(&self) -> Window {
+        unsafe { ffi::gtk_socket_get_id(self.to_glib_none().0) };
+    }
+
+    pub fn get_plug_window(&self) -> GdkWindow {
+        let tmp_pointer = unsafe { ffi::gtk_socket_get_plug_window(self.to_glib_none().0) };
+
+        // add end of code
+    }*/
+}
+"#;
+
+fn get_basic4_md() -> String {
+    String::new()
+}
+
 fn gen_file(temp_dir: &TempDir, filename: &str, content: &str) -> File {
     let mut f = File::create(temp_dir.path().join(filename)).expect("gen_file");
     write!(f, "{}", content).unwrap();
@@ -386,4 +430,33 @@ fn test3_regeneration() {
                                           &temp_dir.path().join(comment_file).to_str().unwrap(),
                                           false);
     compare_files(BASIC3_REGEN, &temp_dir.path().join(test_file));
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test4_strip() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = TempDir::new("").unwrap();
+    gen_file(&temp_dir, test_file, BASIC4);
+    {
+        let mut f = gen_file(&temp_dir, comment_file, "");
+        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
+    }
+    compare_files(&get_basic4_md(), &temp_dir.path().join(comment_file));
+    compare_files(BASIC4, &temp_dir.path().join(test_file));
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test4_regeneration() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = TempDir::new("").unwrap();
+    gen_file(&temp_dir, test_file, BASIC4);
+    gen_file(&temp_dir, comment_file, &get_basic4_md());
+    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
+                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
+                                          false);
+    compare_files(BASIC4, &temp_dir.path().join(test_file));
 }
