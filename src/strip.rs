@@ -315,7 +315,11 @@ fn unformat_comment(c: &str) -> String {
         for to_remove in COMMENT_ID {
             s = s.replace(to_remove, "");
         }
-        s
+        if s.starts_with(" ") {
+            s.as_str()[1..].to_owned()
+        } else {
+            s
+        }
     }
 
     c.replace("*/", "").split("\n").into_iter().map(|s| remove_prepend(s.trim_left())).collect::<Vec<String>>().join("\n")
