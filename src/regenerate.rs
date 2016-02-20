@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs::{OpenOptions, remove_file};
+use std::fs::{File, OpenOptions, remove_file};
 use std::io::{BufRead, BufReader, Write};
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -240,7 +240,7 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
 }
 
 fn rewrite_file(path: &Path, o_content: &[String]) {
-    match OpenOptions::new().write(true).create(true).truncate(true).open(path) {
+    match File::create(path) {
         Ok(mut f) => {
             write!(f, "{}", o_content.join("\n")).unwrap();
         }
@@ -278,7 +278,7 @@ fn save_remainings(infos: &HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<
         let _ = remove_file(comment_file);
         return;
     }
-    match OpenOptions::new().write(true).create(true).truncate(true).open(comment_file) {
+    match File::create(comment_file) {
         Ok(mut out_file) => {
             println!("Some comments couldn't have been regenerated to the files. Saving them back to '{}'.",
                      comment_file);

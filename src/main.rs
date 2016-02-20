@@ -16,8 +16,8 @@ extern crate stripper_lib;
 
 use std::{env, io};
 use std::io::{BufRead, Write};
-use std::fs::OpenOptions;
 use std::path::Path;
+use std::fs::File;
 
 use stripper_lib::regenerate::regenerate_doc_comments;
 use stripper_lib::strip_comments;
@@ -256,7 +256,7 @@ fn main() {
                 strip_comments(w, s, &mut stdout, args.ignore_macros)
             }, &files_to_ignore, verbose);
         } else {
-            match OpenOptions::new().write(true).create(true).truncate(true).open(&out_file) {
+            match File::create(&out_file) {
                 Ok(mut f) => {
                     loop_over_files(directory.as_ref(), &mut |w, s| {
                         strip_comments(w, s, &mut f, args.ignore_macros)
