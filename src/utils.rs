@@ -20,6 +20,7 @@ use consts::{
     FILE_COMMENT,
     FILE,
     END_INFO,
+    OUTPUT_COMMENT_FILE,
 };
 use types::TypeStruct;
 
@@ -62,7 +63,7 @@ where S: AsRef<Path> {
                 do_loop_over_files(work_dir, path, func, files_to_ignore, verbose);
             } else {
                 let path_suffix = strip_prefix(path, work_dir).unwrap();
-                let ignore = path == Path::new("./comments.cmts") ||
+                let ignore = path == Path::new(&format!("./{}", OUTPUT_COMMENT_FILE)) ||
                     path.extension() != Some(OsStr::new("rs")) ||
                     files_to_ignore.iter().any(|s| s.as_ref() == path_suffix);
                 if ignore {

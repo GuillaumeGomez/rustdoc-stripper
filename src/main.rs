@@ -16,12 +16,12 @@ extern crate stripper_lib;
 
 use std::{env, io};
 use std::io::{BufRead, Write};
-use std::fs::OpenOptions;
 use std::path::Path;
+use std::fs::File;
 
 use stripper_lib::regenerate::regenerate_doc_comments;
 use stripper_lib::strip_comments;
-use stripper_lib::types::OUTPUT_COMMENT_FILE;
+use stripper_lib::OUTPUT_COMMENT_FILE;
 use stripper_lib::loop_over_files;
 
 struct ExecOptions {
@@ -62,6 +62,8 @@ fn print_help() {
     -f | --force            : Remove confirmation demands
     -m | --ignore-macros    : macros in hierarchy will be ignored (so only macros with
                               doc comments will appear in the comments file)
+    -o | --comment-file     : specify the file within you want to save rustdoc
+                              information
 
 By default, rustdoc is run with -s option:
 ./rustdoc-stripper -s
@@ -69,7 +71,7 @@ By default, rustdoc is run with -s option:
 IMPORTANT: Only files ending with '.rs' will be stripped/regenerated."#);
 }
 
-fn ask_confirmation() -> bool {
+fn ask_confirmation(out_file: &str) -> bool {
     let r = io::stdin();
     let mut reader = r.lock();
     let mut line = String::new();
@@ -78,7 +80,7 @@ fn ask_confirmation() -> bool {
 
     print!(r##"A file '{}' already exists. If you want to run rustdoc-stripper anyway, it'll erase the file
 and its data. Which means that if your files don't have rustdoc comments anymore, you'll loose them.
-Do you want to continue ? (y/n) "##, OUTPUT_COMMENT_FILE);
+Do you want to continue ? (y/n) "##, out_file);
     stdo.flush();
 
     match reader.read_line(&mut line) {
@@ -116,6 +118,8 @@ fn main() {
     let mut directory = ".".to_owned();
     let mut verbose = false;
     let mut force = false;
+    let mut wait_out_file = false;
+    let mut out_file = OUTPUT_COMMENT_FILE.to_owned();
 
     for argument in env::args() {
         if first {
@@ -130,6 +134,11 @@ fn main() {
         if wait_directory {
             directory = argument.clone();
             wait_directory = false;
+            continue;
+        }
+        if wait_out_file {
+            out_file = argument.clone();
+            wait_out_file = false;
             continue;
         }
         match &*argument {
@@ -147,6 +156,9 @@ fn main() {
             }
             "-d" | "--dir" => {
                 wait_directory = true;
+            }
+            "-o" | "--comment-file" => {
+                wait_out_file = true;
             }
             "-g" | "--regenerate" => {
                 if !check_options(&mut args, 'g') {
@@ -208,26 +220,31 @@ fn main() {
         }
     }
     if wait_filename {
-        println!("-i option expects a filename. Example:");
+        println!("[-i | --ignore] option expects a filename. Example:");
         println!("./rustdoc-stripper -i src/foo.rs");
         return;
     }
     if wait_directory {
-        println!("-d option expects a directory path. Example:");
+        println!("[-d | --dir] option expects a directory path. Example:");
         println!("./rustdoc-stripper -d src/");
+        return;
+    }
+    if wait_out_file {
+        println!("[-o | --comment-file] option expects a file path. Example:");
+        println!("./rustdoc-stripper -o src/out.cmts");
         return;
     }
 
     if args.strip == true || (args.strip == false && args.regenerate == false) {
-        let comments_path = Path::new(OUTPUT_COMMENT_FILE);
+        let comments_path = Path::new(&out_file);
 
         if comments_path.exists() {
             if comments_path.is_file() {
-                if !force && !ask_confirmation() {
+                if !force && !ask_confirmation(&out_file) {
                     return;
                 }
             } else {
-                println!("An element called '{}' already exist. Aborting...", OUTPUT_COMMENT_FILE);
+                println!("An element called '{}' already exists. Aborting...", &out_file);
                 return;
             }
         }
@@ -239,21 +256,21 @@ fn main() {
                 strip_comments(w, s, &mut stdout, args.ignore_macros)
             }, &files_to_ignore, verbose);
         } else {
-            match OpenOptions::new().write(true).create(true).truncate(true).open(OUTPUT_COMMENT_FILE) {
+            match File::create(&out_file) {
                 Ok(mut f) => {
                     loop_over_files(directory.as_ref(), &mut |w, s| {
                         strip_comments(w, s, &mut f, args.ignore_macros)
                     }, &files_to_ignore, verbose);
                 }
                 Err(e) => {
-                    println!("Error while opening \"{}\": {}", OUTPUT_COMMENT_FILE, e);
+                    println!("Error while opening \"{}\": {}", &out_file, e);
                     return;
                 }
             }
         }
     } else {
         println!("Starting regeneration...");
-        regenerate_doc_comments(&directory, verbose, args.ignore_macros);
+        regenerate_doc_comments(&directory, verbose, &out_file, args.ignore_macros);
     }
     println!("Done !");
 }

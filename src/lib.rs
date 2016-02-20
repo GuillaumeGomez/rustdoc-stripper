@@ -29,6 +29,7 @@ pub use consts::{
     FILE_COMMENT,
     MOD_COMMENT,
     END_INFO,
+    OUTPUT_COMMENT_FILE,
 };
 pub use types::{
     EventType,

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs::{OpenOptions, remove_file};
+use std::fs::{File, OpenOptions, remove_file};
 use std::io::{BufRead, BufReader, Write};
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -27,7 +27,6 @@ use consts::{
     FILE,
     END_INFO,
 };
-use types::OUTPUT_COMMENT_FILE;
 
 fn gen_indent(indent: usize) -> String {
     iter::repeat("    ").take(indent).collect::<Vec<&str>>().join("")
@@ -83,9 +82,9 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                     0
                 };
                 if file_comment {
-                    original_content.insert(line + *decal, format!("{}//! {}", &gen_indent(depth), &comment));
+                    original_content.insert(line + *decal, format!("{}//!{}", &gen_indent(depth), &comment));
                 } else {
-                    original_content.insert(line + *decal, format!("{}/// {}", &gen_indent(depth), &comment));
+                    original_content.insert(line + *decal, format!("{}///{}", &gen_indent(depth), &comment));
                 }
                 *decal += 1;
             }
@@ -241,7 +240,7 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
 }
 
 fn rewrite_file(path: &Path, o_content: &[String]) {
-    match OpenOptions::new().write(true).create(true).truncate(true).open(path) {
+    match File::create(path) {
         Ok(mut f) => {
             write!(f, "{}", o_content.join("\n")).unwrap();
         }
@@ -266,7 +265,8 @@ fn parse_mod_line(line: &str) -> Option<TypeStruct> {
     current
 }
 
-fn save_remainings(infos: &HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<String>)>>) {
+fn save_remainings(infos: &HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<String>)>>,
+                   comment_file: &str) {
     let mut remainings = 0;
 
     for (_, content) in infos {
@@ -275,13 +275,13 @@ fn save_remainings(infos: &HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<
         }
     }
     if remainings < 1 {
-        let _ = remove_file(OUTPUT_COMMENT_FILE);
+        let _ = remove_file(comment_file);
         return;
     }
-    match OpenOptions::new().write(true).create(true).truncate(true).open(OUTPUT_COMMENT_FILE) {
+    match File::create(comment_file) {
         Ok(mut out_file) => {
             println!("Some comments couldn't have been regenerated to the files. Saving them back to '{}'.",
-                     OUTPUT_COMMENT_FILE);
+                     comment_file);
             for (key, content) in infos {
                 if content.len() < 1 {
                     continue;
@@ -300,18 +300,18 @@ fn save_remainings(infos: &HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<
             }
         }
         Err(e) => {
-            println!("An error occured while trying to open '{}': {}", OUTPUT_COMMENT_FILE, e);
+            println!("An error occured while trying to open '{}': {}", comment_file, e);
             return;
         }
     }
 }
 
-pub fn regenerate_doc_comments(directory: &str, verbose: bool, ignore_macros: bool) {
+pub fn regenerate_doc_comments(directory: &str, verbose: bool, comment_file: &str, ignore_macros: bool) {
     // we start by storing files info
-    let f = match OpenOptions::new().read(true).open(OUTPUT_COMMENT_FILE) {
+    let f = match OpenOptions::new().read(true).open(comment_file) {
         Ok(f) => f,
         Err(e) => {
-            println!("An error occured while trying to open '{}': {}", OUTPUT_COMMENT_FILE, e);
+            println!("An error occured while trying to open '{}': {}", comment_file, e);
             return;
         }
     };
@@ -323,7 +323,7 @@ pub fn regenerate_doc_comments(directory: &str, verbose: bool, ignore_macros: bo
     loop_over_files(directory.as_ref(), &mut |w, s| {
         regenerate_comments(w, s, &mut infos, ignore_macros)
     }, &ignores, verbose);
-    save_remainings(&infos);
+    save_remainings(&infos, comment_file);
 }
 
 fn sub_erase_macro_path(ty: Option<Box<TypeStruct>>, is_parent: bool) -> Option<Box<TypeStruct>> {

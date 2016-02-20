@@ -3,7 +3,7 @@ rust:
 - nightly
 - beta
 - stable
-sudo: true
 script:
   - rustc --version
   - RUST_BACKTRACE=1 cargo build
+  - RUST_BACKTRACE=1 cargo test
