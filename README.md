@@ -16,6 +16,7 @@ Available options for rustdoc-stripper are:
 * -v | --verbose          : Activate verbose mode
 * -f | --force            : Remove confirmation demands
 * -m | --ignore-macros    : macros in hierarchy will be ignored (so only macros with doc comments will appear in the comments file)
+* -o | --comment-file     : specify the file within you want to save rustdoc information
 
 By default, rustdoc is run with -s option:
 
