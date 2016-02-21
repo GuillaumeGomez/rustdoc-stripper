@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs::{File, OpenOptions};
+use std::fs::File;
 use std::io::{self, BufRead, Write, Read};
 use std::path::Path;
 use std::process::exit;
@@ -180,7 +180,7 @@ fn clean_input(mut s: &str) -> String {
         s = match find_one_of(COMMENT_ID, DOC_COMMENT_ID, s) {
             BlockKind::Comment((s, comment, after)) => {
                 ret.push_str(&transform_code(&s));
-                for _ in 0..comment.split("\n").count() {
+                for _ in 0..comment.split("\n").count() - 1 {
                     ret.push_str(" \n ");
                 }
                 after
@@ -451,7 +451,7 @@ pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
 }
 
 fn remove_comments(path: &Path, to_remove: &[usize], mut o_content: Vec<String>) {
-    match OpenOptions::new().write(true).create(true).truncate(true).open(path) {
+    match File::create(path) {
         Ok(mut f) => {
             let mut decal = 0;
 
