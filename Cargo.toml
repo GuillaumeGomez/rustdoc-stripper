@@ -1,12 +1,15 @@
 [package]
-name = "rustdoc-stripper"
-version = "0.1.0"
 authors = ["Guillaume Gomez <guillaume1.gomez@gmail.com>"]
 license = "Apache-2.0"
-
-[lib]
-name = "stripper_lib"
-crate-type = ["dylib", "rlib"]
+name = "rustdoc-stripper"
+version = "0.1.0"
 
 [[bin]]
 name = "rustdoc-stripper"
+
+[dev-dependencies]
+tempdir = "0.3.4"
+
+[lib]
+crate-type = ["dylib", "rlib"]
+name = "stripper_lib"
