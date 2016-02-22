@@ -14,6 +14,8 @@
 
 use std::ffi::OsStr;
 use std::fs;
+use std::io;
+use std::io::prelude::*;
 use std::path::Path;
 use consts::{
     MOD_COMMENT,
@@ -136,6 +138,11 @@ pub fn write_comment(id: &TypeStruct, comment: &str,
         format!("{}{:?}{}\n{}", MOD_COMMENT, id, END_INFO, comment)
     }
 }
+pub fn write_item_doc<F>(w: &mut Write, id: &TypeStruct, f: F) -> io::Result<()>
+where F: FnOnce(&mut Write) -> io::Result<()> {
+    try!(writeln!(w, "{}{}{}", MOD_COMMENT, id, END_INFO));
+    f(w)
+}
 
 pub fn write_file_comment(comment: &str) -> String {
     format!("{}{}\n{}", FILE_COMMENT, END_INFO, comment)
@@ -143,4 +150,8 @@ pub fn write_file_comment(comment: &str) -> String {
 
 pub fn write_file(file: &str) -> String {
     format!("{}{}{}", FILE, file, END_INFO)
+}
+
+pub fn write_file_name(w: &mut Write, name: Option<&str>) -> io::Result<()> {
+    writeln!(w, "{}{}{}", FILE, name.unwrap_or("*"), END_INFO)
 }
