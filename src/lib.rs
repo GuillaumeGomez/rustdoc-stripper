@@ -38,7 +38,9 @@ pub use types::{
 };
 pub use utils::{
     write_comment,
+    write_item_doc,
     write_file,
+    write_file_name,
     write_file_comment,
     loop_over_files,
 };
