@@ -119,11 +119,11 @@ enum BlockKind<'a> {
     Other(&'a str),
 }
 
-fn get_three_parts<'a>(before: &'a str, after: &'a str, stop: &str) -> (String, String, &'a str) {
+fn get_three_parts<'a>(before: &'a str, comment_sign: &str, after: &'a str, stop: &str) -> (String, String, &'a str) {
     if let Some(pos) = after.find(stop) {
-        (before.to_owned(), after[0..pos].to_owned(), &after[pos..])
+        (before.to_owned(), format!("{} {}", comment_sign, &after[0..pos]), &after[pos..])
     } else {
-        (before.to_owned(), after.to_owned(), &after[after.len() - 1..])
+        (before.to_owned(), format!("{} {}", comment_sign, &after), &after[after.len() - 1..])
     }
 }
 
@@ -137,18 +137,20 @@ fn find_one_of<'a>(comments: &[&str], doc_comments: &[&str], text: &'a str) -> B
             for com in doc_comments {
                 if tmp_text.starts_with(com) {
                     if &com[1..2] == "*" {
-                        return BlockKind::DocComment(get_three_parts(&text[0..last_pos], &text[last_pos..], "*/"))
+                        return BlockKind::DocComment(get_three_parts(&text[0..last_pos], com,
+                                                                     &text[last_pos + com.len()..], "*/"))
                     } else {
-                        return BlockKind::DocComment(get_three_parts(&text[0..last_pos], &text[last_pos..], "\n"))
+                        return BlockKind::DocComment(get_three_parts(&text[0..last_pos], com,
+                                                                     &text[last_pos + com.len()..], "\n"))
                     }
                 }
             }
             for com in comments {
                 if tmp_text.starts_with(com) {
                     if &com[1..2] == "*" {
-                        return BlockKind::Comment(get_three_parts(&text[0..last_pos], &text[last_pos..], "*/"))
+                        return BlockKind::Comment(get_three_parts(&text[0..last_pos], "", &text[last_pos..], "*/"))
                     } else {
-                        return BlockKind::Comment(get_three_parts(&text[0..last_pos], &text[last_pos..], "\n"))
+                        return BlockKind::Comment(get_three_parts(&text[0..last_pos], "", &text[last_pos..], "\n"))
                     }
                 }
             }
@@ -161,9 +163,6 @@ fn find_one_of<'a>(comments: &[&str], doc_comments: &[&str], text: &'a str) -> B
 fn transform_code(code: &str) -> String {
     code.replace("{", " { ")
         .replace("}", " } ")
-        .replace("///", "/// ")
-        .replace("//!", "//! ")
-        .replace("/*!", "/*! ")
         .replace(":", " : ")
         .replace(" :  : ", "::")
         .replace("*/", " */")

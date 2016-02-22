@@ -86,20 +86,20 @@ use glib::object::IsA;
 use glib::translate::*;
 
 glib_wrapper! {
-/// Dialog boxes are a convenient way to prompt the user for a small amount
-/// of input, e.g. to display a message, ask a question, or anything else
-/// that does not require extensive effort on the user’s part.
-/// 
-/// ```
-/// {
-///  dialog = gtk_dialog_new_with_buttons ("Message",
-///                                        parent,
-///                                        flags,
-///                                        _("_OK"),
-///                                        GTK_RESPONSE_NONE,
-///                                        NULL);
-/// }
-/// ```
+    /// Dialog boxes are a convenient way to prompt the user for a small amount
+    /// of input, e.g. to display a message, ask a question, or anything else
+    /// that does not require extensive effort on the user’s part.
+    /// 
+    /// ```
+    /// {
+    ///  dialog = gtk_dialog_new_with_buttons ("Message",
+    ///                                        parent,
+    ///                                        flags,
+    ///                                        _("_OK"),
+    ///                                        GTK_RESPONSE_NONE,
+    ///                                        NULL);
+    /// }
+    /// ```
     pub struct Dialog(Object<ffi::GtkDialog>): Widget, Container, Bin, Window, Buildable;
 
     match fn {
@@ -265,6 +265,20 @@ const BASIC2_MD: &'static str = r#"<!-- file * -->
  Adds a button with the given text
 "#;
 
+const BASIC3 : &'static str = r#"///struct Foo comment
+struct Foo;
+"#;
+
+const BASIC3_STRIPPED : &'static str = r#"struct Foo;
+"#;
+
+fn get_basic3_md(file: &str) -> String {
+    format!(r#"<!-- file {} -->
+<!-- struct Foo -->
+struct Foo comment
+"#, file)
+}
+
 fn gen_file(temp_dir: &TempDir, filename: &str, content: &str) -> File {
     let mut f = File::create(temp_dir.path().join(filename)).expect("gen_file");
     write!(f, "{}", content).unwrap();
@@ -339,4 +353,33 @@ fn test2_regeneration() {
                                           &temp_dir.path().join(comment_file).to_str().unwrap(),
                                           true);
     compare_files(BASIC2, &temp_dir.path().join(test_file));
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test3_strip() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = TempDir::new("").unwrap();
+    gen_file(&temp_dir, test_file, BASIC3);
+    {
+        let mut f = gen_file(&temp_dir, comment_file, "");
+        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
+    }
+    compare_files(&get_basic3_md(test_file), &temp_dir.path().join(comment_file));
+    compare_files(BASIC3_STRIPPED, &temp_dir.path().join(test_file));
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test3_regeneration() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = TempDir::new("").unwrap();
+    gen_file(&temp_dir, test_file, BASIC3_STRIPPED);
+    gen_file(&temp_dir, comment_file, &get_basic3_md(test_file));
+    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
+                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
+                                          false);
+    compare_files(BASIC3, &temp_dir.path().join(test_file));
 }
