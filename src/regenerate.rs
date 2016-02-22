@@ -91,15 +91,21 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                     0
                 };
                 if file_comment {
-                    original_content.insert(line + *decal, format!("{}//!{}",
+                    original_content.insert(line + *decal, format!("{}//! {}",
                                                                    &gen_indent(depth),
                                                                    &comment));
                 } else {
                     let tmp = original_content[line + *decal].clone();
-                    original_content.insert(line + *decal,
-                                            format!("{}///{}",
-                                                    &gen_indent_from(&tmp),
-                                                    &comment));
+                    if comment.len() > 0 {
+                        original_content.insert(line + *decal,
+                                                format!("{}/// {}",
+                                                        &gen_indent_from(&tmp),
+                                                        &comment));
+                    } else {
+                        original_content.insert(line + *decal,
+                                                format!("{}///",
+                                                        &gen_indent_from(&tmp)));
+                    }
                 }
                 *decal += 1;
             }
