@@ -133,6 +133,7 @@ fn find_one_of<'a>(comments: &[&str], doc_comments: &[&str], text: &'a str) -> B
     loop {
         let tmp_text = &text[last_pos..];
         if let Some(pos) = tmp_text.find('/') {
+            let tmp_text = &tmp_text[pos..];
             last_pos = pos + last_pos;
             for com in doc_comments {
                 if tmp_text.starts_with(com) {
@@ -154,9 +155,8 @@ fn find_one_of<'a>(comments: &[&str], doc_comments: &[&str], text: &'a str) -> B
                     }
                 }
             }
-        } else {
-            return BlockKind::Other(text)
         }
+        return BlockKind::Other(text)
     }
 }
 
