@@ -118,7 +118,7 @@ impl Debug for TypeStruct {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         let parent = &self.parent;
         match parent {
-            &Some(ref p) => write!(f, "{:?}§{} {}{}", p, self.ty, self.name, self.args.join(" ")),
+            &Some(ref p) => write!(f, "{:?}::{} {}{}", p, self.ty, self.name, self.args.join(" ")),
             _ => write!(f, "{} {}{}", self.ty, self.name, self.args.join(" ")),
         }
     }
@@ -126,7 +126,7 @@ impl Debug for TypeStruct {
 
 fn show(f: &mut Formatter, t: &TypeStruct, is_parent: bool) -> Result<(), Error> {
     if is_parent {
-        write!(f, "{} {}{}§", t.ty, t.name, t.args.join(" "))
+        write!(f, "{} {}{}::", t.ty, t.name, t.args.join(" "))
     } else {
         write!(f, "{} {}{}", t.ty, t.name, t.args.join(" "))
     }

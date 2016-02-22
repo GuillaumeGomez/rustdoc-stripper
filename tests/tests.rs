@@ -62,13 +62,13 @@ fn get_basic_md(file: &str) -> String {
     format!(r#"<!-- file {} -->
 <!-- struct Foo -->
 struct Foo comment
-<!-- struct Foo§variant A -->
+<!-- struct Foo::variant A -->
 Foo comment
 fn some_func(a: u32,
              b: u32) {{}}
-<!-- mod Bar§macro test!§struct SuperFoo -->
+<!-- mod Bar::macro test!::struct SuperFoo -->
 struct inside macro
-<!-- mod Bar§macro test!§macro sub_test!§struct FooFoo -->
+<!-- mod Bar::macro test!::macro sub_test!::struct FooFoo -->
 and another one!
 "#, file)
 }
@@ -200,7 +200,7 @@ that does not require extensive effort on the user’s part.
                                        NULL);
 }}
 ```
-<!-- impl Dialog§fn new -->
+<!-- impl Dialog::fn new -->
 Creates a new dialog box.
 
 Widgets should not be packed into this `Window`
@@ -211,14 +211,14 @@ directly, but into the `vbox` and `action_area`, as described above.
 the new dialog as a `Widget`
 <!-- trait DialogExt -->
 Trait containing all `Dialog` methods.
-<!-- trait DialogExt§fn add_action_widget -->
+<!-- trait DialogExt::fn add_action_widget -->
 Adds an activatable widget to the action area of a `Dialog`,
 connecting a signal handler that will emit the `Dialog::response`
 signal on the dialog when the widget is activated. The widget is
 appended to the end of the dialog’s action area. If you want to add a
 non-activatable widget, simply pack it into the `action_area` field
 of the `Dialog` struct.
-<!-- trait DialogExt§fn add_button -->
+<!-- trait DialogExt::fn add_button -->
 Adds a button with the given text
 "#, file)
 }
@@ -239,7 +239,7 @@ that does not require extensive effort on the user’s part.
                                        NULL);
 }
 ```
-<!-- impl Dialog§fn new -->
+<!-- impl Dialog::fn new -->
 Creates a new dialog box.
 
 Widgets should not be packed into this `Window`
@@ -248,20 +248,20 @@ directly, but into the `vbox` and `action_area`, as described above.
 # Returns
 
 the new dialog as a `Widget`
-<!-- impl Dialog§fn new_with_buttons -->
+<!-- impl Dialog::fn new_with_buttons -->
 Creates a new `Dialog` with title `title` (or `None` for the default
 title; see `Window::set_title`) and transient parent `parent` (or
 `None` for none; see `Window::set_transient_for`).
 <!-- trait DialogExt -->
 Trait containing all `Dialog` methods.
-<!-- trait DialogExt§fn add_action_widget -->
+<!-- trait DialogExt::fn add_action_widget -->
 Adds an activatable widget to the action area of a `Dialog`,
 connecting a signal handler that will emit the `Dialog::response`
 signal on the dialog when the widget is activated. The widget is
 appended to the end of the dialog’s action area. If you want to add a
 non-activatable widget, simply pack it into the `action_area` field
 of the `Dialog` struct.
-<!-- trait DialogExt§fn add_button -->
+<!-- trait DialogExt::fn add_button -->
 Adds a button with the given text
 "#;
 

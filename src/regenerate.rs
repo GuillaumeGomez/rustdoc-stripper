@@ -273,7 +273,7 @@ fn rewrite_file(path: &Path, o_content: &[String]) {
 
 fn parse_mod_line(line: &str) -> Option<TypeStruct> {
     let line = line.replace(MOD_COMMENT, "").replace(END_INFO, "");
-    let parts : Vec<&str> = line.split("§").collect();
+    let parts : Vec<&str> = line.split("::").collect();
     let mut current = None;
 
     for part in parts {
