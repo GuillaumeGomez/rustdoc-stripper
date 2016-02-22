@@ -20,7 +20,11 @@ use std::io::prelude::*;
 use std::path::Path;
 use tempdir::TempDir;
 
-const BASIC : &'static str = r#"/// struct Foo comment
+const BASIC : &'static str = r#"//! File comment
+//! three
+//! lines
+
+/// struct Foo comment
 struct Foo {
     /// Foo comment
     /// fn some_func(a: u32,
@@ -60,6 +64,10 @@ mod Bar {
 
 fn get_basic_md(file: &str) -> String {
     format!(r#"<!-- file {} -->
+<!-- file_comment -->
+File comment
+three
+lines
 <!-- struct Foo -->
 struct Foo comment
 <!-- struct Foo::variant A -->

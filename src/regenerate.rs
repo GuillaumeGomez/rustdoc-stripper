@@ -449,11 +449,7 @@ where S: Deref<Target = str>,
                     }
                     ty = parse_mod_line(&line[..]);
                 } else {
-                    if ty.is_some() {
-                        comments.push(line[..].to_owned());
-                    } else {
-                        panic!("Orphan comment");
-                    }
+                    comments.push(line[..].to_owned());
                 }
                 State::File {
                     file: file,
