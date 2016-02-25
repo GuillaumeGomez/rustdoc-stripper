@@ -327,6 +327,32 @@ fn get_basic4_md() -> String {
     String::new()
 }
 
+const BASIC5 : &'static str = r#"/// Here is a flags!
+pub flags SomeFlags : u32 {
+    /// a const
+    const VISIBLE = 1,
+    /// another
+    const HIDDEN = 2,
+}
+"#;
+
+const BASIC5_STRIPPED : &'static str = r#"pub flags SomeFlags : u32 {
+    const VISIBLE = 1,
+    const HIDDEN = 2,
+}
+"#;
+
+fn get_basic5_md(file: &str) -> String {
+    format!(r#"<!-- file {} -->
+<!-- flags SomeFlags -->
+Here is a flags!
+<!-- flags SomeFlags::const VISIBLE -->
+a const
+<!-- flags SomeFlags::const HIDDEN -->
+another
+"#, file)
+}
+
 fn gen_file(temp_dir: &TempDir, filename: &str, content: &str) -> File {
     let mut f = File::create(temp_dir.path().join(filename)).expect("gen_file");
     write!(f, "{}", content).unwrap();
@@ -459,4 +485,33 @@ fn test4_regeneration() {
                                           &temp_dir.path().join(comment_file).to_str().unwrap(),
                                           false);
     compare_files(BASIC4, &temp_dir.path().join(test_file));
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test5_strip() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = TempDir::new("").unwrap();
+    gen_file(&temp_dir, test_file, BASIC5);
+    {
+        let mut f = gen_file(&temp_dir, comment_file, "");
+        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
+    }
+    compare_files(&get_basic5_md(test_file), &temp_dir.path().join(comment_file));
+    compare_files(BASIC5_STRIPPED, &temp_dir.path().join(test_file));
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test5_regeneration() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = TempDir::new("").unwrap();
+    gen_file(&temp_dir, test_file, BASIC5_STRIPPED);
+    gen_file(&temp_dir, comment_file, &get_basic5_md(test_file));
+    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
+                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
+                                          false);
+    compare_files(BASIC5, &temp_dir.path().join(test_file));
 }

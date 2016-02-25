@@ -169,6 +169,7 @@ pub enum Type {
     Use,
     Macro,
     Trait,
+    Flags,
     Unknown,
 }
 
@@ -185,6 +186,7 @@ impl Type {
             "impl" => Type::Impl,
             "use" => Type::Use,
             "trait" => Type::Trait,
+            "flags" => Type::Flags,
             "macro" | "macro_rules" | "macro_rules!" => Type::Macro,
             _ => Type::Variant,
         }
@@ -206,6 +208,7 @@ impl Display for Type {
             Type::Use => write!(f, "use"),
             Type::Trait => write!(f, "trait"),
             Type::Macro => write!(f, "macro"),
+            Type::Flags => write!(f, "flags"),
             _ => write!(f, "?"),
         }
     }
