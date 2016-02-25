@@ -254,7 +254,7 @@ pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
                         }
                         event_list.push(EventInfo::new(line, EventType::Type(TypeStruct::new(Type::from(ty), &name))));
                     }
-                    "struct" | "fn" | "enum" | "const" | "static" | "type" | "trait" | "macro_rules!" => {
+                    "struct" | "fn" | "enum" | "const" | "static" | "type" | "trait" | "macro_rules!" | "flags" => {
                         event_list.push(EventInfo::new(line, EventType::Type(
                                                                 TypeStruct::new(
                                                                     Type::from(words[it]),
