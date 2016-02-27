@@ -98,14 +98,13 @@ pub fn type_out_scope(current: &Option<TypeStruct>) -> Option<TypeStruct> {
     }
 }
 
-fn get_mod<F: Write>(current: &Option<TypeStruct>, out_file: &mut F, ignore_macros: bool) -> bool {
+fn get_mod(current: &Option<TypeStruct>) -> bool {
     match *current {
         Some(ref t) => {
             if t.ty != Type::Mod {
                 println!("Mod/File comments cannot be put here!");
                 false
             } else {
-                write!(out_file, "{}", &write_comment(t, "", ignore_macros)).unwrap();
                 true
             }
         }
@@ -222,7 +221,6 @@ pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
                         event_list.push(EventInfo::new(line, EventType::FileComment(b_content[line].to_owned())));
                         if line + 1 < b_content.len() && b_content[line + 1].len() < 1 {
                             comment_lines.push(line + 1);
-                            event_list.push(EventInfo::new(line, EventType::FileComment("".to_owned())));
                         }
                         move_to(&words, &mut it, "\n", &mut line);
                     }
@@ -344,22 +342,25 @@ pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
                         if t.ty != Type::Unknown {
                             waiting_type = Some(t.clone());
                         }
-                    }
+                    },
                     EventType::InScope => {
                         current = add_to_type_scope(&current, &waiting_type);
                         waiting_type = None;
-                    }
+                    },
                     EventType::OutScope => {
                         current = type_out_scope(&current);
                         waiting_type = None;
-                    }
+                    },
                     EventType::FileComment(ref c) => {
                         // first, we need to find if it belongs to a mod
-                        if get_mod(&current, out_file, ignore_macros) == false {
+                        if get_mod(&current) == false {
                             exit(1);
                         }
                         it += 1;
-                        let mut comments = write_file_comment(&unformat_comment(c));
+                        let mut comments = format!("{}\n",
+                                                   &write_file_comment(&unformat_comment(c),
+                                                                       &current,
+                                                                       ignore_macros));
                         while match parse_result.event_list[it].event {
                             EventType::FileComment(ref c) => {
                                 comments.push_str(&format!("{}\n", unformat_comment(c)));
@@ -371,7 +372,7 @@ pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
                         }
                         write!(out_file, "{}", comments).unwrap();
                         continue;
-                    }
+                    },
                     EventType::Comment(ref c) => {
                         let mut comments = format!("{}\n", c);
 
@@ -440,7 +441,7 @@ pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
                             it += 1;
                         }
                         continue;
-                    }
+                    },
                 }
                 it += 1;
             }

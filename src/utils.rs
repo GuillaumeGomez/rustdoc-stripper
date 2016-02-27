@@ -144,8 +144,16 @@ where F: FnOnce(&mut Write) -> io::Result<()> {
     f(w)
 }
 
-pub fn write_file_comment(comment: &str) -> String {
-    format!("{}{}\n{}", FILE_COMMENT, END_INFO, comment)
+pub fn write_file_comment(comment: &str, id: &Option<TypeStruct>, ignore_macro: bool) -> String {
+    if let &Some(ref t) = id {
+        if ignore_macro {
+            format!("{} {}{}\n{}", FILE_COMMENT, t, END_INFO, comment)
+        } else {
+            format!("{} {:?}{}\n{}", FILE_COMMENT, t, END_INFO, comment)
+        }
+    } else {
+        format!("{}{}\n{}", FILE_COMMENT, END_INFO, comment)
+    }
 }
 
 pub fn write_file(file: &str) -> String {

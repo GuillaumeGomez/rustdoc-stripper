@@ -33,6 +33,7 @@ struct Foo {
 }
 
 mod Bar {
+    //! mod comment
     test! {
         /// struct inside macro
         struct SuperFoo;
@@ -42,6 +43,11 @@ mod Bar {
                 x: u32,
             }
         }
+    }
+
+    mod SubBar {
+        //! an empty mod
+        //! yeay
     }
 }
 "#;
@@ -59,6 +65,9 @@ mod Bar {
             }
         }
     }
+
+    mod SubBar {
+    }
 }
 "#;
 
@@ -74,10 +83,15 @@ struct Foo comment
 Foo comment
 fn some_func(a: u32,
              b: u32) {{}}
+<!-- file_comment mod Bar -->
+mod comment
 <!-- mod Bar::macro test!::struct SuperFoo -->
 struct inside macro
 <!-- mod Bar::macro test!::macro sub_test!::struct FooFoo -->
 and another one!
+<!-- file_comment mod Bar::mod SubBar -->
+an empty mod
+yeay
 "#, file)
 }
 

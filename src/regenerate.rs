@@ -55,7 +55,8 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                 let ret = a == b;
 
                 // to detect variants
-                if !ret && b.ty == Type::Unknown && b.parent.is_some() && a.parent.is_some() && a.parent == b.parent {
+                if !ret && b.ty == Type::Unknown && b.parent.is_some() && a.parent.is_some() &&
+                   a.parent == b.parent {
                     if match b.parent {
                         Some(ref p) => p.ty == Type::Struct || p.ty == Type::Enum || p.ty == Type::Use,
                         None => false,
@@ -75,7 +76,7 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
         } {
             let mut file_comment = false;
 
-            if elements[pos].1.len() > 0 && elements[pos].1[0].starts_with(FILE_COMMENT) {
+            if elements[pos].1.len() > 0 && elements[pos].1[0].starts_with("//!") {
                 line += 1;
                 file_comment = true;
             } else {
@@ -84,7 +85,7 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                     line -= 1;
                 }
             }
-            for comment in &elements[pos].1 {
+            for comment in (&elements[pos].1).into_iter().skip(if file_comment { 1 } else { 0 }) {
                 let depth = if let Some(ref e) = elements[pos].0 {
                     e.get_depth(ignore_macros)
                 } else {
@@ -92,7 +93,7 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                 };
                 if file_comment {
                     original_content.insert(line + *decal, format!("{}//! {}",
-                                                                   &gen_indent(depth),
+                                                                   &gen_indent(depth + 1),
                                                                    &comment));
                 } else {
                     let tmp = original_content[line + *decal].clone();
@@ -134,10 +135,10 @@ pub fn regenerate_comments(work_dir: &Path, path: &str,
             if let Some(v) = infos.get_mut(&None) {
                 do_regenerate(&full_path, parse_result, v, ignore_macros);
             }
-        }
+        },
         Err(e) => {
             println!("Error in file '{}': {}", path, e);
-        }
+        },
     }
 }
 
@@ -152,13 +153,11 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
         if entry.0.is_none() {
             let mut it = 0;
 
-            while it < parse_result.original_content.len() {
-                if parse_result.original_content[it].starts_with("/") &&
-                   it + 1 < parse_result.original_content.len() &&
-                   parse_result.original_content[it + 1].len() < 1 {
-                    it += 2;
-                    break;
-                }
+            while it < parse_result.original_content.len() &&
+                  parse_result.original_content[it].starts_with("/") {
+                it += 1;
+            }
+            if it > 0 {
                 it += 1;
             }
             if it < parse_result.original_content.len() {
@@ -168,6 +167,8 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                     it += 1;
                 }
             }
+            parse_result.original_content.insert(it, "".to_owned());
+            decal += 1;
             break;
         }
         position += 1;
@@ -272,7 +273,10 @@ fn rewrite_file(path: &Path, o_content: &[String]) {
 }
 
 fn parse_mod_line(line: &str) -> Option<TypeStruct> {
-    let line = line.replace(MOD_COMMENT, "").replace(END_INFO, "");
+    let line = line.replace(FILE_COMMENT, "").replace(MOD_COMMENT, "").replace(END_INFO, "");
+    if line.len() < 1 {
+        return None
+    }
     let parts : Vec<&str> = line.split("::").collect();
     let mut current = None;
 
@@ -319,11 +323,11 @@ fn save_remainings(infos: &HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<
                     }
                 }
             }
-        }
+        },
         Err(e) => {
             println!("An error occured while trying to open '{}': {}", comment_file, e);
             return;
-        }
+        },
     }
 }
 
@@ -334,7 +338,7 @@ pub fn regenerate_doc_comments(directory: &str, verbose: bool, comment_file: &st
         Err(e) => {
             println!("An error occured while trying to open '{}': {}", comment_file, e);
             return;
-        }
+        },
     };
     let reader = BufReader::new(f);
     let lines = reader.lines().map(|line| line.unwrap());
@@ -401,8 +405,7 @@ where S: Deref<Target = str>,
             else {
                 Some(Some(name.to_owned()))
             }
-        }
-        else {
+        } else {
             None
         }
     }
@@ -423,7 +426,7 @@ where S: Deref<Target = str>,
                 } else {
                     panic!("Unrecognized format");
                 }
-            }
+            },
             State::File { mut file, mut infos, mut ty, mut comments } => {
                 if let Some(new_file) = line_file(&line) {
                     if !comments.is_empty() {
@@ -439,9 +442,15 @@ where S: Deref<Target = str>,
                     if let Some(ty) = ty.take() {
                         if !comments.is_empty() {
                             infos.push((Some(ty), comments));
+                            comments = vec!["//!".to_owned()];
+                        }
+                    } else {
+                        if !comments.is_empty() {
+                            infos.push((None, comments));
                             comments = vec![];
                         }
                     }
+                    ty = parse_mod_line(&line[..]);
                 } else if line.starts_with(MOD_COMMENT) {
                     if !comments.is_empty() {
                         infos.push((ty, comments));
@@ -457,7 +466,7 @@ where S: Deref<Target = str>,
                     ty: if ignore_macros { erase_macro_path(ty) } else { ty },
                     comments: comments,
                 }
-            }
+            },
         }
     }
 
