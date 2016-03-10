@@ -58,7 +58,9 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                 if !ret && b.ty == Type::Unknown && b.parent.is_some() && a.parent.is_some() &&
                    a.parent == b.parent {
                     if match b.parent {
-                        Some(ref p) => p.ty == Type::Struct || p.ty == Type::Enum || p.ty == Type::Use,
+                        Some(ref p) => {
+                            p.ty == Type::Struct || p.ty == Type::Enum || p.ty == Type::Use
+                        }
                         None => false,
                     } {
                         let mut tmp = b.clone();
@@ -120,7 +122,7 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
 // The hashmap key is `Some(file name)` or `None` for entries that ignore file name
 pub fn regenerate_comments(work_dir: &Path, path: &str,
         infos: &mut HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<String>)>>,
-        ignore_macros: bool) {
+        ignore_macros: bool, ignore_doc_commented: bool) {
     if !infos.contains_key(&None) && !infos.contains_key(&Some(path.to_owned())) {
         return;
     }
@@ -129,11 +131,11 @@ pub fn regenerate_comments(work_dir: &Path, path: &str,
         Ok(ref mut parse_result) => {
             // exact path match
             if let Some(v) = infos.get_mut(&Some(path.to_owned())) {
-                do_regenerate(&full_path, parse_result, v, ignore_macros);
+                do_regenerate(&full_path, parse_result, v, ignore_macros, ignore_doc_commented);
             }
             // apply to all files
             if let Some(v) = infos.get_mut(&None) {
-                do_regenerate(&full_path, parse_result, v, ignore_macros);
+                do_regenerate(&full_path, parse_result, v, ignore_macros, ignore_doc_commented);
             }
         },
         Err(e) => {
@@ -142,9 +144,17 @@ pub fn regenerate_comments(work_dir: &Path, path: &str,
     }
 }
 
+fn check_if_regen(it: usize, parse_result: &ParseResult, ignore_doc_commented: bool) -> bool {
+    ignore_doc_commented && it > 0 &&
+    match parse_result.event_list[it - 1].event {
+        EventType::Comment(_) | EventType::FileComment(_) => true,
+        _ => false,
+    }
+}
+
 fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                  elements: &mut Vec<(Option<TypeStruct>, Vec<String>)>,
-                 ignore_macros: bool) {
+                 ignore_macros: bool, ignore_doc_commented: bool) {
     let mut position = 0;
     let mut decal = 0;
 
@@ -194,14 +204,16 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                         }
                     };
 
-                    match get_corresponding_type(&elements, &tmp,
-                                                 parse_result.event_list[it].line,
-                                                 &mut decal,
-                                                 &mut parse_result.original_content,
-                                                 ignore_macros) {
-                        Some(l) => { elements.remove(l); },
-                        None => {}
-                    };
+                    if !check_if_regen(it, parse_result, ignore_doc_commented) {
+                        match get_corresponding_type(&elements, &tmp,
+                                                     parse_result.event_list[it].line,
+                                                     &mut decal,
+                                                     &mut parse_result.original_content,
+                                                     ignore_macros) {
+                            Some(l) => { elements.remove(l); },
+                            None => {}
+                        }
+                    }
                 } else {
                     match current {
                         Some(ref c) => {
@@ -217,13 +229,15 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                                     }
                                 };
 
-                                match get_corresponding_type(&elements, &cc,
-                                                             parse_result.event_list[it].line,
-                                                             &mut decal,
-                                                             &mut parse_result.original_content,
-                                                             ignore_macros) {
-                                    Some(l) => { elements.remove(l); },
-                                    None => {}
+                                if !check_if_regen(it, parse_result, ignore_doc_commented) {
+                                    match get_corresponding_type(&elements, &cc,
+                                                                 parse_result.event_list[it].line,
+                                                                 &mut decal,
+                                                                 &mut parse_result.original_content,
+                                                                 ignore_macros) {
+                                        Some(l) => { elements.remove(l); }
+                                        None => {}
+                                    }
                                 }
                             }
                         }
@@ -241,14 +255,17 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                     }
                 };
                 waiting_type = None;
-                match get_corresponding_type(&elements, &current,
-                                             parse_result.event_list[it].line,
-                                             &mut decal,
-                                             &mut parse_result.original_content,
-                                             ignore_macros) {
-                    Some(l) => { elements.remove(l); },
-                    None => {}
-                };
+
+                if !check_if_regen(it, parse_result, ignore_doc_commented) {
+                    match get_corresponding_type(&elements, &current,
+                                                 parse_result.event_list[it].line,
+                                                 &mut decal,
+                                                 &mut parse_result.original_content,
+                                                 ignore_macros) {
+                        Some(l) => { elements.remove(l); },
+                        None => {}
+                    }
+                }
             }
             EventType::OutScope => {
                 current = strip::type_out_scope(&current);
@@ -305,7 +322,8 @@ fn save_remainings(infos: &HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<
     }
     match File::create(comment_file) {
         Ok(mut out_file) => {
-            println!("Some comments couldn't have been regenerated to the files. Saving them back to '{}'.",
+            println!("Some comments couldn't have been regenerated to the files. Saving them \
+                      back to '{}'.",
                      comment_file);
             for (key, content) in infos {
                 if content.len() < 1 {
@@ -317,7 +335,9 @@ fn save_remainings(infos: &HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<
                 for line in content {
                     match line.0 {
                         Some(ref d) => {
-                            let _ = writeln!(out_file, "{}", write_comment(d, &join(&line.1, "\n"), false));
+                            let _ = writeln!(out_file,
+                                             "{}", write_comment(d, &join(&line.1, "\n"),
+                                             false));
                         }
                         None => {}
                     }
@@ -331,7 +351,9 @@ fn save_remainings(infos: &HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<
     }
 }
 
-pub fn regenerate_doc_comments(directory: &str, verbose: bool, comment_file: &str, ignore_macros: bool) {
+pub fn regenerate_doc_comments(directory: &str, verbose: bool, comment_file: &str,
+                               ignore_macros: bool,
+                               ignore_doc_commented: bool) {
     // we start by storing files info
     let f = match OpenOptions::new().read(true).open(comment_file) {
         Ok(f) => f,
@@ -346,7 +368,7 @@ pub fn regenerate_doc_comments(directory: &str, verbose: bool, comment_file: &st
     let ignores: &[&str] = &[];
 
     loop_over_files(directory.as_ref(), &mut |w, s| {
-        regenerate_comments(w, s, &mut infos, ignore_macros)
+        regenerate_comments(w, s, &mut infos, ignore_macros, ignore_doc_commented)
     }, &ignores, verbose);
     save_remainings(&infos, comment_file);
 }

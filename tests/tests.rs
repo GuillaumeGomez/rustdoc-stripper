@@ -375,6 +375,28 @@ another
 "#, file)
 }
 
+const BASIC6 : &'static str = r#"/// not stripped comment
+struct Foo;
+
+struct Bar;
+"#;
+
+const BASIC6_REGEN : &'static str = r#"/// not stripped comment
+struct Foo;
+
+/// struct Bar comment
+struct Bar;
+"#;
+
+fn get_basic6_md(file: &str) -> String {
+    format!(r#"<!-- file {} -->
+<!-- struct Foo -->
+struct Foo comment
+<!-- struct Bar -->
+struct Bar comment
+"#, file)
+}
+
 fn gen_file(temp_dir: &TempDir, filename: &str, content: &str) -> File {
     let mut f = File::create(temp_dir.path().join(filename)).expect("gen_file");
     write!(f, "{}", content).unwrap();
@@ -418,7 +440,7 @@ fn test_regeneration() {
     gen_file(&temp_dir, comment_file, &get_basic_md(test_file));
     stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
                                           &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false);
+                                          false, false);
     compare_files(BASIC, &temp_dir.path().join(test_file));
 }
 
@@ -447,7 +469,7 @@ fn test2_regeneration() {
     gen_file(&temp_dir, comment_file, BASIC2_MD);
     stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
                                           &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          true);
+                                          true, false);
     compare_files(BASIC2, &temp_dir.path().join(test_file));
 }
 
@@ -476,7 +498,7 @@ fn test3_regeneration() {
     gen_file(&temp_dir, comment_file, &get_basic3_md(test_file));
     stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
                                           &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false);
+                                          false, false);
     compare_files(BASIC3_REGEN, &temp_dir.path().join(test_file));
 }
 
@@ -505,7 +527,7 @@ fn test4_regeneration() {
     gen_file(&temp_dir, comment_file, &get_basic4_md());
     stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
                                           &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false);
+                                          false, false);
     compare_files(BASIC4, &temp_dir.path().join(test_file));
 }
 
@@ -534,6 +556,21 @@ fn test5_regeneration() {
     gen_file(&temp_dir, comment_file, &get_basic5_md(test_file));
     stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
                                           &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false);
+                                          false, false);
     compare_files(BASIC5, &temp_dir.path().join(test_file));
+}
+
+// test if ignore_doc_commented option is working
+#[allow(unused_must_use)]
+#[test]
+fn test6_regeneration() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = TempDir::new("").unwrap();
+    gen_file(&temp_dir, test_file, BASIC6);
+    gen_file(&temp_dir, comment_file, &get_basic6_md(test_file));
+    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
+                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
+                                          false, true);
+    compare_files(BASIC6_REGEN, &temp_dir.path().join(test_file));
 }
