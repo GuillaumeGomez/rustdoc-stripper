@@ -29,6 +29,7 @@ struct ExecOptions {
     strip: bool,
     regenerate: bool,
     ignore_macros: bool,
+    ignore_doc_commented: bool,
 }
 
 fn check_options(args: &mut ExecOptions, to_change: char) -> bool {
@@ -48,22 +49,24 @@ fn check_options(args: &mut ExecOptions, to_change: char) -> bool {
 
 fn print_help() {
     println!(r#"Available options for rustdoc-stripper:
-    -h | --help             : Displays this help
-    -s | --strip            : Strips the specified folder's files and create a file
-                              with rustdoc information (comments.md by default)
-    -g | --regenerate       : Recreate files with rustdoc comments from reading
-                              rustdoc information file (comments.md by default)
-    -n | --no-file-output   : Display rustdoc information directly on stdout
-    -i | --ignore [filename]: Ignore the specified file, can be repeated as much
-                              as needed, only used when stripping files, ignored
-                              otherwise
-    -d | --dir [directory]  : Specify a directory path to work on, optional
-    -v | --verbose          : Activate verbose mode
-    -f | --force            : Remove confirmation demands
-    -m | --ignore-macros    : macros in hierarchy will be ignored (so only macros with
-                              doc comments will appear in the comments file)
-    -o | --comment-file     : specify the file within you want to save rustdoc
-                              information
+    -h | --help                : Displays this help
+    -s | --strip               : Strips the specified folder's files and create a file
+                                 with rustdoc information (comments.md by default)
+    -g | --regenerate          : Recreate files with rustdoc comments from reading
+                                 rustdoc information file (comments.md by default)
+    -n | --no-file-output      : Display rustdoc information directly on stdout
+    -i | --ignore [filename]   : Ignore the specified file, can be repeated as much
+                                 as needed, only used when stripping files, ignored
+                                 otherwise
+    -d | --dir [directory]     : Specify a directory path to work on, optional
+    -v | --verbose             : Activate verbose mode
+    -f | --force               : Remove confirmation demands
+    -m | --ignore-macros       : Macros in hierarchy will be ignored (so only macros with
+                                 doc comments will appear in the comments file)
+    -o | --comment-file        : Specify the file within you want to save rustdoc
+                                 information
+    -x | --ignore-doc-commented: When regenerating doc comments, if doc comments are
+                                 already present, stored doc comment won't be regenerated
 
 By default, rustdoc is run with -s option:
 ./rustdoc-stripper -s
@@ -110,6 +113,7 @@ fn main() {
         strip: false,
         regenerate: false,
         ignore_macros: false,
+        ignore_doc_commented: false,
     };
     let mut first = true;
     let mut wait_filename = false;
@@ -177,9 +181,16 @@ fn main() {
             "-m" | "--ignore-macros" => {
                 args.ignore_macros = true;
             }
+            "-x" | "--ignore-doc-commented" => {
+                args.ignore_doc_commented = true;
+            }
+            "-" | "--" => {
+                println!("Unknown option: '-'");
+                return;
+            }
             s => {
                 if s.chars().next().unwrap() != '-' {
-                    println!("Unknown option: {}", s);
+                    println!("Unknown option: '{}'", s);
                     return;
                 }
                 for c in (&s[1..]).chars() {
@@ -194,6 +205,9 @@ fn main() {
                         }
                         'm' => {
                             args.ignore_macros = true;
+                        }
+                        'x' => {
+                            args.ignore_doc_commented = true;
                         }
                         'h' => {
                             print_help();
@@ -270,7 +284,8 @@ fn main() {
         }
     } else {
         println!("Starting regeneration...");
-        regenerate_doc_comments(&directory, verbose, &out_file, args.ignore_macros);
+        regenerate_doc_comments(&directory, verbose, &out_file, args.ignore_macros,
+                                args.ignore_doc_commented);
     }
     println!("Done !");
 }
