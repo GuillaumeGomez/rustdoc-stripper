@@ -1,8 +1,17 @@
 [package]
 authors = ["Guillaume Gomez <guillaume1.gomez@gmail.com>"]
-license = "Apache-2.0"
 name = "rustdoc-stripper"
 version = "0.1.0"
+
+description = "A tool to manipulate rustdoc comments"
+repository = "https://github.com/GuillaumeGomez/rustdoc-stripper"
+homepage = "https://github.com/GuillaumeGomez/rustdoc-stripper"
+documentation = "https://github.com/GuillaumeGomez/rustdoc-stripper"
+license = "Apache-2.0"
+
+readme = "README.md"
+
+keywords = ["rustdoc", "doc", "strip", "tool"]
 
 [[bin]]
 name = "rustdoc-stripper"
