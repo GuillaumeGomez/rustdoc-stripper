@@ -378,11 +378,21 @@ another
 const BASIC6 : &'static str = r#"/// not stripped comment
 struct Foo;
 
+impl Foo {
+    /// another existing comment
+    fn new() -> Foo {}
+}
+
 struct Bar;
 "#;
 
 const BASIC6_REGEN : &'static str = r#"/// not stripped comment
 struct Foo;
+
+impl Foo {
+    /// another existing comment
+    fn new() -> Foo {}
+}
 
 /// struct Bar comment
 struct Bar;
@@ -392,6 +402,8 @@ fn get_basic6_md(file: &str) -> String {
     format!(r#"<!-- file {} -->
 <!-- struct Foo -->
 struct Foo comment
+<!-- impl Foo::fn new -->
+fn new comment
 <!-- struct Bar -->
 struct Bar comment
 "#, file)

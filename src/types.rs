@@ -37,10 +37,7 @@ impl EventInfo {
 
 impl Debug for EventInfo {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        match self.event {
-            EventType::Type(ref t) => { writeln!(fmt, "{:?}->{:?}", self.line, t) }
-            _ => Ok(())
-        }
+        write!(fmt, "{:?}->{:?}", self.line, self.event)
     }
 }
 
@@ -55,8 +52,11 @@ pub enum EventType {
 impl Debug for EventType {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         match self {
-            &EventType::Type(ref t) => writeln!(fmt, "{:?}", t),
-            _ => Ok(())
+            &EventType::Type(ref t) => write!(fmt, "Type: {:?}", t),
+            &EventType::FileComment(ref t) => write!(fmt, "FileComment: {:?}", t),
+            &EventType::Comment(ref t) => write!(fmt, "Comment: {:?}", t),
+            &EventType::InScope => write!(fmt, "InScope"),
+            &EventType::OutScope => write!(fmt, "OutScope"),
         }
     }
 }

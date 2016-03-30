@@ -255,17 +255,6 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                     }
                 };
                 waiting_type = None;
-
-                if !check_if_regen(it, parse_result, ignore_doc_commented) {
-                    match get_corresponding_type(&elements, &current,
-                                                 parse_result.event_list[it].line,
-                                                 &mut decal,
-                                                 &mut parse_result.original_content,
-                                                 ignore_macros) {
-                        Some(l) => { elements.remove(l); },
-                        None => {}
-                    }
-                }
             }
             EventType::OutScope => {
                 current = strip::type_out_scope(&current);
@@ -322,7 +311,7 @@ fn save_remainings(infos: &HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<
     }
     match File::create(comment_file) {
         Ok(mut out_file) => {
-            println!("Some comments couldn't have been regenerated to the files. Saving them \
+            println!("Some comments haven't been regenerated to the files. Saving them \
                       back to '{}'.",
                      comment_file);
             for (key, content) in infos {
