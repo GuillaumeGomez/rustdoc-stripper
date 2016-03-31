@@ -230,7 +230,6 @@ fn clear_events(mut events: Vec<EventInfo>) -> Vec<EventInfo> {
             }
             _ => false,
         } {
-            println!("deleted");
             events.remove(it);
             continue
         }
