@@ -378,11 +378,21 @@ another
 const BASIC6 : &'static str = r#"/// not stripped comment
 struct Foo;
 
+impl Foo {
+    /// another existing comment
+    fn new() -> Foo {}
+}
+
 struct Bar;
 "#;
 
 const BASIC6_REGEN : &'static str = r#"/// not stripped comment
 struct Foo;
+
+impl Foo {
+    /// another existing comment
+    fn new() -> Foo {}
+}
 
 /// struct Bar comment
 struct Bar;
@@ -392,8 +402,23 @@ fn get_basic6_md(file: &str) -> String {
     format!(r#"<!-- file {} -->
 <!-- struct Foo -->
 struct Foo comment
+<!-- impl Foo::fn new -->
+fn new comment
 <!-- struct Bar -->
 struct Bar comment
+"#, file)
+}
+
+const BASIC7 : &'static str = r#"impl Foo {
+    /// existing comment
+    pub unsafe fn new() -> Foo {}
+}
+"#;
+
+fn get_basic7_md(file: &str) -> String {
+    format!(r#"<!-- file {} -->
+<!-- impl Foo::fn new -->
+bad comment
 "#, file)
 }
 
@@ -573,4 +598,19 @@ fn test6_regeneration() {
                                           &temp_dir.path().join(comment_file).to_str().unwrap(),
                                           false, true);
     compare_files(BASIC6_REGEN, &temp_dir.path().join(test_file));
+}
+
+// test if ignore_doc_commented option is working
+#[allow(unused_must_use)]
+#[test]
+fn test7_regeneration() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = TempDir::new("").unwrap();
+    gen_file(&temp_dir, test_file, BASIC7);
+    gen_file(&temp_dir, comment_file, &get_basic7_md(test_file));
+    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
+                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
+                                          false, true);
+    compare_files(BASIC7, &temp_dir.path().join(test_file));
 }
