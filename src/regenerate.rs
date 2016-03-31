@@ -194,7 +194,6 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
             EventType::Type(ref t) => {
                 if t.ty != Type::Unknown {
                     waiting_type = Some(t.clone());
-                    println!("1--> {:?}", t);
                     let tmp = {
                         let t = strip::add_to_type_scope(&current, &waiting_type);
                         if ignore_macros {
@@ -205,7 +204,6 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                     };
 
                     if !check_if_regen(it, parse_result, ignore_doc_commented) {
-                        println!("add comment");
                         match get_corresponding_type(&elements, &tmp,
                                                      parse_result.event_list[it].line,
                                                      &mut decal,
@@ -216,7 +214,6 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                         }
                     }
                 } else {
-                    println!("2--> {:?}", t);
                     match current {
                         Some(ref c) => {
                             if c.ty == Type::Struct || c.ty == Type::Enum ||
@@ -232,7 +229,6 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                                 };
 
                                 if !check_if_regen(it, parse_result, ignore_doc_commented) {
-                                    println!("add comment");
                                     match get_corresponding_type(&elements, &cc,
                                                                  parse_result.event_list[it].line,
                                                                  &mut decal,
