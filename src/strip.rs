@@ -196,6 +196,49 @@ fn clean_input(mut s: &str) -> String {
     }
 }
 
+fn clear_events(mut events: Vec<EventInfo>) -> Vec<EventInfo> {
+    let mut current : Option<TypeStruct> = None;
+    let mut waiting_type : Option<TypeStruct> = None;
+    let mut it = 0;
+
+    while it < events.len() {
+        if match events[it].event {
+            EventType::Type(ref t) => {
+                if t.ty != Type::Unknown {
+                    waiting_type = Some(t.clone());
+                    false
+                } else {
+                    if let Some(ref parent) = current {
+                        match parent.ty {
+                            Type::Struct | Type::Enum => false,
+                            _ => true,
+                        }
+                    } else {
+                        true
+                    }
+                }
+            }
+            EventType::InScope => {
+                current = add_to_type_scope(&current, &waiting_type);
+                waiting_type = None;
+                false
+            }
+            EventType::OutScope => {
+                current = type_out_scope(&current);
+                waiting_type = None;
+                false
+            }
+            _ => false,
+        } {
+            println!("deleted");
+            events.remove(it);
+            continue
+        }
+        it += 1;
+    }
+    events
+}
+
 pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
     match File::open(path) {
         Ok(mut f) => {
@@ -294,7 +337,7 @@ pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
                 }
                 it += 1;
             }
-            Ok(ParseResult { event_list : event_list,
+            Ok(ParseResult { event_list : clear_events(event_list),
                              comment_lines : comment_lines,
                              original_content : b_content,
                            })
