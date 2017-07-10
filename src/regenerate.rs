@@ -50,9 +50,6 @@ fn regenerate_comment(is_file_comment: bool, position: usize, indent: usize, com
         let tmp = original_content[position].clone();
         gen_indent_from(&tmp)
     };
-    if is_file_comment {
-        println!("=> {:?}", comment.trim());
-    }
     original_content.insert(position,
                             format!("{}{}{}{}",
                                     &read_indent,
