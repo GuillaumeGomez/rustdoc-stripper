@@ -41,6 +41,26 @@ fn gen_indent_from(from: &str) -> String {
     String::new()
 }
 
+fn regenerate_comment(is_file_comment: bool, position: usize, indent: usize, comment: &str,
+                      original_content: &mut Vec<String>) {
+    let is_empty = comment.trim().is_empty();
+    let read_indent = if is_file_comment {
+        gen_indent(indent)
+    } else {
+        let tmp = original_content[position].clone();
+        gen_indent_from(&tmp)
+    };
+    if is_file_comment {
+        println!("=> {:?}", comment.trim());
+    }
+    original_content.insert(position,
+                            format!("{}{}{}{}",
+                                    &read_indent,
+                                    if is_file_comment { "//!" } else { "///" },
+                                    if is_empty { "" } else { " " },
+                                    if is_empty { "" } else { &comment }));
+}
+
 fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                           to_find: &Option<TypeStruct>,
                           mut line: usize,
@@ -92,23 +112,8 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                 } else {
                     0
                 };
-                if file_comment {
-                    original_content.insert(line + *decal, format!("{}//! {}",
-                                                                   &gen_indent(depth + 1),
-                                                                   &comment));
-                } else {
-                    let tmp = original_content[line + *decal].clone();
-                    if comment.len() > 0 {
-                        original_content.insert(line + *decal,
-                                                format!("{}/// {}",
-                                                        &gen_indent_from(&tmp),
-                                                        &comment));
-                    } else {
-                        original_content.insert(line + *decal,
-                                                format!("{}///",
-                                                        &gen_indent_from(&tmp)));
-                    }
-                }
+                regenerate_comment(file_comment, line + *decal, depth + 1, &comment,
+                                   original_content);
                 *decal += 1;
             }
             return Some(pos);
@@ -171,7 +176,11 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
             }
             if it < parse_result.original_content.len() {
                 for line in &entry.1 {
-                    parse_result.original_content.insert(it, format!("//! {}", &line));
+                    if line.trim().is_empty() {
+                        parse_result.original_content.insert(it, format!("//!"));
+                    } else {
+                        parse_result.original_content.insert(it, format!("//! {}", &line));
+                    }
                     decal += 1;
                     it += 1;
                 }

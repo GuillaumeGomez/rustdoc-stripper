@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::fs::File;
-use std::io::{self, BufRead, Write, Read};
+use std::io::{self, Write, Read};
 use std::path::Path;
 use std::process::exit;
 use std::ops::Deref;
@@ -352,9 +352,9 @@ fn unformat_comment(c: &str) -> String {
         for to_remove in DOC_COMMENT_ID {
             s = s.replace(to_remove, "");
         }
-        for to_remove in COMMENT_ID {
+        /*for to_remove in COMMENT_ID {
             s = s.replace(to_remove, "");
-        }
+        }*/
         if s.starts_with(" ") {
             (&s)[1..].to_owned()
         } else {
