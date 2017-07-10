@@ -50,25 +50,26 @@ fn check_options(args: &mut ExecOptions, to_change: char) -> bool {
 fn print_help() {
     println!(r#"Available options for rustdoc-stripper:
     -h | --help                : Displays this help
-    -s | --strip               : Strips the specified folder's files and create a file
-                                 with rustdoc information (comments.md by default)
-    -g | --regenerate          : Recreate files with rustdoc comments from reading
-                                 rustdoc information file (comments.md by default)
-    -n | --no-file-output      : Display rustdoc information directly on stdout
+    -s | --strip               : Strips the specified folder's files and create
+                                 a file with doc comments (comments.md by default)
+    -g | --regenerate          : Recreate files with doc comments from reading
+                                 doc comments file (comments.md by default)
+    -n | --no-file-output      : Display doc comments directly on stdout
     -i | --ignore [filename]   : Ignore the specified file, can be repeated as much
                                  as needed, only used when stripping files, ignored
                                  otherwise
     -d | --dir [directory]     : Specify a directory path to work on, optional
     -v | --verbose             : Activate verbose mode
     -f | --force               : Remove confirmation demands
-    -m | --ignore-macros       : Macros in hierarchy will be ignored (so only macros with
-                                 doc comments will appear in the comments file)
-    -o | --comment-file        : Specify the file within you want to save rustdoc
-                                 information
-    -x | --ignore-doc-commented: When regenerating doc comments, if doc comments are
-                                 already present, stored doc comment won't be regenerated
+    -m | --ignore-macros       : Macros in hierarchy will be ignored (so only macros
+                                 with doc comments will appear in the comments file)
+    -o | --comment-file        : Specify the file where you want to save/load doc
+                                 comments
+    -x | --ignore-doc-commented: When regenerating doc comments, if doc comments
+                                 are already present, stored doc comment won't be
+                                 regenerated
 
-By default, rustdoc is run with -s option:
+By default, rustdoc-stripper is run with -s option:
 ./rustdoc-stripper -s
 
 IMPORTANT: Only files ending with '.rs' will be stripped/regenerated."#);
@@ -84,7 +85,7 @@ fn ask_confirmation(out_file: &str) -> bool {
     print!(r##"A file '{}' already exists. If you want to run rustdoc-stripper anyway, it'll erase the file
 and its data. Which means that if your files don't have rustdoc comments anymore, you'll loose them.
 Do you want to continue ? (y/n) "##, out_file);
-    stdo.flush();
+    let _ = stdo.flush();
 
     match reader.read_line(&mut line) {
         Ok(_) => {
