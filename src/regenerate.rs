@@ -138,10 +138,10 @@ pub fn regenerate_comments(work_dir: &Path, path: &str,
             if let Some(v) = infos.get_mut(&None) {
                 do_regenerate(&full_path, parse_result, v, ignore_macros, ignore_doc_commented);
             }
-        },
+        }
         Err(e) => {
             println!("Error in file '{}': {}", path, e);
-        },
+        }
     }
 }
 
@@ -222,7 +222,8 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                 } else {
                     match current {
                         Some(ref c) => {
-                            if c.ty == Type::Struct || c.ty == Type::Enum ||
+                            if c.ty == Type::Struct ||
+                               c.ty == Type::Enum ||
                                c.ty == Type::Mod {
                                 let tmp = Some(t.clone());
                                 let cc = {
