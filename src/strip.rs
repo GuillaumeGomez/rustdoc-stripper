@@ -20,7 +20,7 @@ use std::ops::Deref;
 use utils::{join, write_comment, write_file, write_file_comment};
 use types::{EventInfo, EventType, ParseResult, Type, TypeStruct};
 
-const STOP_CHARACTERS : &'static [char] = &['\t', '\n', '\r', '<', '{', ':', ';', '!'];
+const STOP_CHARACTERS : &'static [char] = &['\t', '\n', '\r', '<', '{', ':', ';', '!', '('];
 const COMMENT_ID : &'static [&'static str] = &["//", "/*"];
 const DOC_COMMENT_ID : &'static [&'static str] = &["///", "/*!", "//!"];
 
@@ -65,7 +65,8 @@ fn get_impl(words: &[&str], it: &mut usize, line: &mut usize) -> Vec<String> {
     v
 }
 
-pub fn add_to_type_scope(current: &Option<TypeStruct>, e: &Option<TypeStruct>) -> Option<TypeStruct> {
+pub fn add_to_type_scope(current: &Option<TypeStruct>,
+                         e: &Option<TypeStruct>) -> Option<TypeStruct> {
     match current {
         &Some(ref c) => {
             match e {
@@ -118,7 +119,10 @@ enum BlockKind<'a> {
     Other(&'a str),
 }
 
-fn get_three_parts<'a>(before: &'a str, comment_sign: &str, after: &'a str, stop: &str) -> (String, String, &'a str) {
+fn get_three_parts<'a>(before: &'a str,
+                       comment_sign: &str,
+                       after: &'a str,
+                       stop: &str) -> (String, String, &'a str) {
     if let Some(pos) = after.find(stop) {
         (before.to_owned(), format!("{} {}", comment_sign, &after[0..pos]), &after[pos..])
     } else {
@@ -138,19 +142,25 @@ fn find_one_of<'a>(comments: &[&str], doc_comments: &[&str], text: &'a str) -> B
                 if tmp_text.starts_with(com) {
                     if &com[1..2] == "*" {
                         return BlockKind::DocComment(get_three_parts(&text[0..last_pos], com,
-                                                                     &text[last_pos + com.len()..], "*/"))
+                                                                     &text[last_pos + com.len()..],
+                                                                     "*/"))
                     } else {
                         return BlockKind::DocComment(get_three_parts(&text[0..last_pos], com,
-                                                                     &text[last_pos + com.len()..], "\n"))
+                                                                     &text[last_pos + com.len()..],
+                                                                     "\n"))
                     }
                 }
             }
             for com in comments {
                 if tmp_text.starts_with(com) {
                     if &com[1..2] == "*" {
-                        return BlockKind::Comment(get_three_parts(&text[0..last_pos], "", &text[last_pos..], "*/"))
+                        return BlockKind::Comment(get_three_parts(&text[0..last_pos],
+                                                                  "",
+                                                                  &text[last_pos..], "*/"))
                     } else {
-                        return BlockKind::Comment(get_three_parts(&text[0..last_pos], "", &text[last_pos..], "\n"))
+                        return BlockKind::Comment(get_three_parts(&text[0..last_pos],
+                                                                  "",
+                                                                  &text[last_pos..], "\n"))
                     }
                 }
             }
@@ -255,12 +265,15 @@ pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
                 match words[it] {
                     "///" => {
                         comment_lines.push(line);
-                        event_list.push(EventInfo::new(line, EventType::Comment(b_content[line].to_owned())));
+                        event_list.push(
+                            EventInfo::new(line, EventType::Comment(b_content[line].to_owned())));
                         move_to(&words, &mut it, "\n", &mut line);
                     }
                     "//!" => {
                         comment_lines.push(line);
-                        event_list.push(EventInfo::new(line, EventType::FileComment(b_content[line].to_owned())));
+                        event_list.push(
+                            EventInfo::new(line,
+                                           EventType::FileComment(b_content[line].to_owned())));
                         if line + 1 < b_content.len() && b_content[line + 1].len() < 1 {
                             comment_lines.push(line + 1);
                         }
@@ -271,7 +284,9 @@ pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
                         move_until(&words, &mut it, "*/", &mut line);
                         for pos in mark..line {
                             comment_lines.push(pos);
-                            event_list.push(EventInfo::new(line, EventType::FileComment(b_content[pos].to_owned())));
+                            event_list.push(
+                                EventInfo::new(line,
+                                               EventType::FileComment(b_content[pos].to_owned())));
                         }
                         comment_lines.push(line);
                         let mut removed = false;
@@ -279,9 +294,11 @@ pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
                             comment_lines.push(line + 1);
                             removed = true;
                         }
-                        event_list.push(EventInfo::new(line, EventType::FileComment("*/".to_owned())));
+                        event_list.push(
+                            EventInfo::new(line, EventType::FileComment("*/".to_owned())));
                         if removed {
-                            event_list.push(EventInfo::new(line, EventType::FileComment("".to_owned())));
+                            event_list.push(
+                                EventInfo::new(line, EventType::FileComment("".to_owned())));
                         }
                     }
                     "use" | "mod" => {
@@ -292,29 +309,51 @@ pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
                             move_to(&words, &mut it, "\n", &mut line);
                             name.push_str(&format!("{}", b_content[line + 1].trim()));
                         }
-                        event_list.push(EventInfo::new(line, EventType::Type(TypeStruct::new(Type::from(ty), &name))));
+                        event_list.push(
+                            EventInfo::new(line,
+                                           EventType::Type(TypeStruct::new(Type::from(ty),
+                                                                           &name))));
                     }
-                    "struct" | "fn" | "enum" | "const" | "static" | "type" | "trait" | "macro_rules!" | "flags" => {
-                        event_list.push(EventInfo::new(line, EventType::Type(
-                                                                TypeStruct::new(
-                                                                    Type::from(words[it]),
-                                                                               get_before(words[it + 1],
-                                                                                          STOP_CHARACTERS)
-                                                                               ))));
+                    "struct" |
+                    "fn" |
+                    "enum" |
+                    "const" |
+                    "static" |
+                    "type" |
+                    "trait" |
+                    "macro_rules!" |
+                    "flags" => {
+                        event_list.push(
+                            EventInfo::new(line,
+                                           EventType::Type(
+                                               TypeStruct::new(
+                                                   Type::from(words[it]),
+                                                              get_before(words[it + 1],
+                                                              STOP_CHARACTERS)))));
                         it += 1;
                     }
                     "!!" => {
                         event_list.push(EventInfo::new(line,
-                            EventType::Type(TypeStruct::new(Type::from("macro"), &format!("{}!{}", words[it - 1], words[it + 1])))));
+                            EventType::Type(TypeStruct::new(Type::from("macro"),
+                                                            &format!("{}!{}",
+                                                                     words[it - 1],
+                                                                     words[it + 1])))));
                         it += 1;
                     }
                     "!?" => {
                         event_list.push(EventInfo::new(line,
-                            EventType::Type(TypeStruct::new(Type::from("macro"), &format!("{}!", words[it - 1])))));
+                            EventType::Type(TypeStruct::new(Type::from("macro"),
+                                                            &format!("{}!", words[it - 1])))));
                     }
                     "impl" => {
-                        event_list.push(EventInfo::new(line,
-                            EventType::Type(TypeStruct::new(Type::Impl, &join(&get_impl(&words, &mut it, &mut line), " ")))));
+                        event_list.push(
+                            EventInfo::new(line,
+                                           EventType::Type(
+                                               TypeStruct::new(
+                                                   Type::Impl,
+                                                   &join(&get_impl(&words,
+                                                                   &mut it,
+                                                                   &mut line), " ")))));
                     }
                     "{" => {
                         event_list.push(EventInfo::new(line, EventType::InScope));
@@ -331,7 +370,10 @@ pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
                         }
                     }
                     _ => {
-                        event_list.push(EventInfo::new(line, EventType::Type(TypeStruct::new(Type::Unknown, words[it]))));
+                        event_list.push(
+                            EventInfo::new(line,
+                                           EventType::Type(TypeStruct::new(Type::Unknown,
+                                                                           words[it]))));
                     }
                 }
                 it += 1;
@@ -362,7 +404,10 @@ fn unformat_comment(c: &str) -> String {
         }
     }
 
-    c.replace("*/", "").split("\n").into_iter().map(|s| remove_prepend(s.trim_left())).collect::<Vec<String>>().join("\n")
+    c.replace("*/", "")
+     .split("\n")
+     .into_iter()
+     .map(|s| remove_prepend(s.trim_left())).collect::<Vec<String>>().join("\n")
 }
 
 pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
@@ -441,16 +486,22 @@ pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
                                     Type::Unknown => {
                                         match current {
                                             Some(ref cur) => {
-                                                if cur.ty == Type::Enum || cur.ty == Type::Struct || cur.ty == Type::Use {
+                                                if cur.ty == Type::Enum ||
+                                                   cur.ty == Type::Struct ||
+                                                   cur.ty == Type::Use {
                                                     if t.name == "pub" {
                                                         true
                                                     } else {
                                                         let mut copy = t.clone();
                                                         copy.ty = Type::Variant;
-                                                        let tmp = add_to_type_scope(&current, &Some(copy));
-                                                        write!(out_file, "{}", write_comment(&tmp.unwrap(),
-                                                                                             &unformat_comment(&comments),
-                                                                                             ignore_macros)).unwrap();
+                                                        let tmp = add_to_type_scope(&current,
+                                                                                    &Some(copy));
+                                                        write!(out_file, "{}",
+                                                               write_comment(&tmp.unwrap(),
+                                                                             &unformat_comment(
+                                                                                &comments),
+                                                                             ignore_macros))
+                                                            .unwrap();
                                                         false
                                                     }
                                                 } else {
@@ -472,8 +523,10 @@ pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
                                     },
                                     _ => {
                                         let tmp = add_to_type_scope(&current, &Some(t.clone()));
-                                        write!(out_file, "{}", write_comment(&tmp.unwrap(), &unformat_comment(&comments),
-                                                                             ignore_macros)).unwrap();
+                                        write!(out_file, "{}",
+                                               write_comment(&tmp.unwrap(),
+                                                             &unformat_comment(&comments),
+                                                             ignore_macros)).unwrap();
                                         false
                                     }
                                 }
