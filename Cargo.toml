@@ -20,5 +20,4 @@ name = "rustdoc-stripper"
 tempdir = "0.3.4"
 
 [lib]
-crate-type = ["dylib", "rlib"]
 name = "stripper_lib"
