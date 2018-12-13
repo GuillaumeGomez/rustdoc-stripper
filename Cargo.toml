@@ -17,7 +17,7 @@ keywords = ["rustdoc", "doc", "strip", "tool"]
 name = "rustdoc-stripper"
 
 [dev-dependencies]
-tempdir = "0.3.4"
+tempfile = "3.0.5"
 
 [lib]
 name = "stripper_lib"
