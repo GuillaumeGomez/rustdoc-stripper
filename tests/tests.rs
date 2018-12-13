@@ -13,12 +13,12 @@
 // limitations under the License.
 
 extern crate stripper_lib;
-extern crate tempdir;
+extern crate tempfile;
 
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
-use tempdir::TempDir;
+use tempfile::{TempDir, tempdir};
 
 const BASIC : &'static str = r#"//! File comment
 //! three
@@ -445,7 +445,7 @@ fn compare_files(expected_content: &str, file: &Path) {
 fn test_strip() {
     let test_file = "basic.rs";
     let comment_file = "basic.md";
-    let temp_dir = TempDir::new("").unwrap();
+    let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC);
     {
         let mut f = gen_file(&temp_dir, comment_file, "");
@@ -460,7 +460,7 @@ fn test_strip() {
 fn test_regeneration() {
     let test_file = "basic.rs";
     let comment_file = "basic.md";
-    let temp_dir = TempDir::new("").unwrap();
+    let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC_STRIPPED);
     gen_file(&temp_dir, comment_file, &get_basic_md(test_file));
     stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
@@ -474,7 +474,7 @@ fn test_regeneration() {
 fn test2_strip() {
     let test_file = "basic.rs";
     let comment_file = "basic.md";
-    let temp_dir = TempDir::new("").unwrap();
+    let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC2);
     {
         let mut f = gen_file(&temp_dir, comment_file, "");
@@ -489,7 +489,7 @@ fn test2_strip() {
 fn test2_regeneration() {
     let test_file = "basic.rs";
     let comment_file = "basic.md";
-    let temp_dir = TempDir::new("").unwrap();
+    let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC2_STRIPPED);
     gen_file(&temp_dir, comment_file, BASIC2_MD);
     stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
@@ -503,7 +503,7 @@ fn test2_regeneration() {
 fn test3_strip() {
     let test_file = "basic.rs";
     let comment_file = "basic.md";
-    let temp_dir = TempDir::new("").unwrap();
+    let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC3);
     {
         let mut f = gen_file(&temp_dir, comment_file, "");
@@ -518,7 +518,7 @@ fn test3_strip() {
 fn test3_regeneration() {
     let test_file = "basic.rs";
     let comment_file = "basic.md";
-    let temp_dir = TempDir::new("").unwrap();
+    let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC3_STRIPPED);
     gen_file(&temp_dir, comment_file, &get_basic3_md(test_file));
     stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
@@ -532,7 +532,7 @@ fn test3_regeneration() {
 fn test4_strip() {
     let test_file = "basic.rs";
     let comment_file = "basic.md";
-    let temp_dir = TempDir::new("").unwrap();
+    let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC4);
     {
         let mut f = gen_file(&temp_dir, comment_file, "");
@@ -547,7 +547,7 @@ fn test4_strip() {
 fn test4_regeneration() {
     let test_file = "basic.rs";
     let comment_file = "basic.md";
-    let temp_dir = TempDir::new("").unwrap();
+    let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC4);
     gen_file(&temp_dir, comment_file, &get_basic4_md());
     stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
@@ -561,7 +561,7 @@ fn test4_regeneration() {
 fn test5_strip() {
     let test_file = "basic.rs";
     let comment_file = "basic.md";
-    let temp_dir = TempDir::new("").unwrap();
+    let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC5);
     {
         let mut f = gen_file(&temp_dir, comment_file, "");
@@ -576,7 +576,7 @@ fn test5_strip() {
 fn test5_regeneration() {
     let test_file = "basic.rs";
     let comment_file = "basic.md";
-    let temp_dir = TempDir::new("").unwrap();
+    let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC5_STRIPPED);
     gen_file(&temp_dir, comment_file, &get_basic5_md(test_file));
     stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
@@ -591,7 +591,7 @@ fn test5_regeneration() {
 fn test6_regeneration() {
     let test_file = "basic.rs";
     let comment_file = "basic.md";
-    let temp_dir = TempDir::new("").unwrap();
+    let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC6);
     gen_file(&temp_dir, comment_file, &get_basic6_md(test_file));
     stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
@@ -606,7 +606,7 @@ fn test6_regeneration() {
 fn test7_regeneration() {
     let test_file = "basic.rs";
     let comment_file = "basic.md";
-    let temp_dir = TempDir::new("").unwrap();
+    let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC7);
     gen_file(&temp_dir, comment_file, &get_basic7_md(test_file));
     stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
