@@ -130,8 +130,7 @@ fn iter_after<A, I, J>(mut iter: I, mut prefix: J) -> Option<I>
     }
 }
 
-pub fn write_comment(id: &TypeStruct, comment: &str,
-                     ignore_macro: bool) -> String {
+pub fn write_comment(id: &TypeStruct, comment: &str, ignore_macro: bool) -> String {
     if ignore_macro {
         format!("{}{}{}\n{}", MOD_COMMENT, id, END_INFO, comment)
     } else {

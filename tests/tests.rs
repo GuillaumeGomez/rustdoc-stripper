@@ -422,6 +422,42 @@ bad comment
 "#, file)
 }
 
+// The goal of this test is to check if inner macro_rules doc comments are ignored.
+const BASIC8: &'static str = r#"/// foooo
+macro_rules! some_macro {
+    ($constructor_ffi: ident) => {
+        /// Takes full ownership of the output stream,
+        /// which is not allowed to borrow any lifetime shorter than `'static`.
+        ///
+        /// Because the underlying `cairo_surface_t` is reference-counted,
+        /// a lifetime parameter in a Rust wrapper type would not be enough to track
+        /// how long it can keep writing to the stream.
+        pub fn for_stream<W: io::Write + 'static>(width: f64, height: f64, stream: W) -> u32 {
+            0
+        }
+    }
+}
+"#;
+
+const BASIC8_STRIPPED : &'static str = r#"macro_rules! some_macro {
+    ($constructor_ffi: ident) => {
+        /// Takes full ownership of the output stream,
+        /// which is not allowed to borrow any lifetime shorter than `'static`.
+        ///
+        /// Because the underlying `cairo_surface_t` is reference-counted,
+        /// a lifetime parameter in a Rust wrapper type would not be enough to track
+        /// how long it can keep writing to the stream.
+        pub fn for_stream<W: io::Write + 'static>(width: f64, height: f64, stream: W) -> u32 {
+            0
+        }
+    }
+}
+"#;
+
+fn get_basic8_md(_file: &str) -> String {
+    "<!-- file basic.rs -->\n<!-- macro some_macro -->\nfoooo\n".to_owned()
+}
+
 fn gen_file(temp_dir: &TempDir, filename: &str, content: &str) -> File {
     let mut f = File::create(temp_dir.path().join(filename)).expect("gen_file");
     write!(f, "{}", content).unwrap();
@@ -434,10 +470,10 @@ fn compare_files(expected_content: &str, file: &Path) {
     f.read_to_string(&mut buf).unwrap();
     println!("");
     for (l, r) in expected_content.lines().zip(buf.lines()) {
-        assert_eq!(l, r);
+        assert_eq!(l, r, "compare_files0 failed");
         println!("{}", l);
     }
-    assert!(expected_content == &buf);
+    assert_eq!(expected_content, &buf, "compare_files1 failed");
 }
 
 #[allow(unused_must_use)]
@@ -613,4 +649,33 @@ fn test7_regeneration() {
                                           &temp_dir.path().join(comment_file).to_str().unwrap(),
                                           false, true);
     compare_files(BASIC7, &temp_dir.path().join(test_file));
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test8_strip() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC8);
+    {
+        let mut f = gen_file(&temp_dir, comment_file, "");
+        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
+    }
+    compare_files(&get_basic8_md(test_file), &temp_dir.path().join(comment_file));
+    compare_files(BASIC8_STRIPPED, &temp_dir.path().join(test_file));
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test8_regeneration() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC8);
+    gen_file(&temp_dir, comment_file, &get_basic8_md(test_file));
+    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
+                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
+                                          false, true);
+    compare_files(BASIC8, &temp_dir.path().join(test_file));
 }

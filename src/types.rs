@@ -133,7 +133,7 @@ fn show(f: &mut Formatter, t: &TypeStruct, is_parent: bool) -> Result<(), Error>
 }
 
 fn sub_call(f: &mut Formatter, t: &TypeStruct, is_parent: bool) -> Result<(), Error> {
-    if t.ty == Type::Macro && is_parent == true {
+    if (t.ty == Type::Macro || t.ty.is_macro_definition()) && is_parent == true {
         match t.parent {
             Some(ref p) => sub_call(f, p.borrow(), true),
             _ => Ok(()),
@@ -167,10 +167,20 @@ pub enum Type {
     Variant,
     Impl,
     Use,
+    MacroDefinition,
     Macro,
     Trait,
     Flags,
     Unknown,
+}
+
+impl Type {
+    pub fn is_macro_definition(&self) -> bool {
+        match *self {
+            Type::MacroDefinition => true,
+            _ => false,
+        }
+    }
 }
 
 impl Type {
@@ -187,7 +197,8 @@ impl Type {
             "use" => Type::Use,
             "trait" => Type::Trait,
             "flags" => Type::Flags,
-            "macro" | "macro_rules" | "macro_rules!" => Type::Macro,
+            "macro" => Type::Macro,
+            "macro_rules" | "macro_rules!" => Type::MacroDefinition,
             _ => Type::Variant,
         }
     }
@@ -208,6 +219,7 @@ impl Display for Type {
             Type::Use => write!(f, "use"),
             Type::Trait => write!(f, "trait"),
             Type::Macro => write!(f, "macro"),
+            Type::MacroDefinition => write!(f, "macro"),
             Type::Flags => write!(f, "flags"),
             _ => write!(f, "?"),
         }
