@@ -37,10 +37,13 @@ fn move_to(words: &[&str], it: &mut usize, limit: &str, line: &mut usize) {
 }
 
 fn move_until(words: &[&str], it: &mut usize, limit: &str, line: &mut usize) {
-    while (*it + 1) < words.len() && limit != words[*it] {
-        if words[*it] == "\n" {
-            *line += 1;
-        }
+    let alternative1 = format!("{};", limit);
+    let alternative2 = format!("{}\n", limit);
+    while (*it + 1) < words.len() &&
+          !words[*it].ends_with(limit) &&
+          !words[*it].ends_with(&alternative1) &&
+          !words[*it].ends_with(&alternative2) {
+        *line += words[*it].chars().filter(|c| *c == '\n').count();
         *it += 1;
     }
 }
@@ -248,143 +251,171 @@ fn clear_events(mut events: Vec<EventInfo>) -> Vec<EventInfo> {
     events
 }
 
-pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
-    match File::open(path) {
-        Ok(mut f) => {
-            let mut b_content = String::new();
-            f.read_to_string(&mut b_content).unwrap();
-            let content = clean_input(&b_content);
-            let b_content : Vec<String> = b_content.split('\n').map(|s| s.to_owned()).collect();
-            let words : Vec<&str> = content.split(' ').filter(|s| s.len() > 0).collect();
-            let mut it = 0;
-            let mut line = 0;
-            let mut event_list = vec!();
-            let mut comment_lines = vec!();
-
-            while it < words.len() {
-                match words[it] {
-                    "///" => {
-                        comment_lines.push(line);
-                        event_list.push(
-                            EventInfo::new(line, EventType::Comment(b_content[line].to_owned())));
-                        move_to(&words, &mut it, "\n", &mut line);
-                    }
-                    "//!" => {
-                        comment_lines.push(line);
-                        event_list.push(
-                            EventInfo::new(line,
-                                           EventType::FileComment(b_content[line].to_owned())));
-                        if line + 1 < b_content.len() && b_content[line + 1].len() < 1 {
-                            comment_lines.push(line + 1);
-                        }
-                        move_to(&words, &mut it, "\n", &mut line);
-                    }
-                    "/*!" => {
-                        let mark = line;
-                        move_until(&words, &mut it, "*/", &mut line);
-                        for pos in mark..line {
-                            comment_lines.push(pos);
-                            event_list.push(
-                                EventInfo::new(line,
-                                               EventType::FileComment(b_content[pos].to_owned())));
-                        }
-                        comment_lines.push(line);
-                        let mut removed = false;
-                        if line + 1 < b_content.len() && b_content[line + 1].len() < 1 {
-                            comment_lines.push(line + 1);
-                            removed = true;
-                        }
-                        event_list.push(
-                            EventInfo::new(line, EventType::FileComment("*/".to_owned())));
-                        if removed {
-                            event_list.push(
-                                EventInfo::new(line, EventType::FileComment("".to_owned())));
-                        }
-                    }
-                    "use" | "mod" => {
-                        let mut name = words[it + 1].to_owned();
-                        let ty = words[it];
-
-                        if line + 1 < b_content.len() && b_content[line].ends_with("::{") {
-                            move_to(&words, &mut it, "\n", &mut line);
-                            name.push_str(&format!("{}", b_content[line + 1].trim()));
-                        }
-                        event_list.push(
-                            EventInfo::new(line,
-                                           EventType::Type(TypeStruct::new(Type::from(ty),
-                                                                           &name))));
-                    }
-                    "struct" |
-                    "fn" |
-                    "enum" |
-                    "const" |
-                    "static" |
-                    "type" |
-                    "trait" |
-                    "macro_rules!" |
-                    "flags" => {
-                        event_list.push(
-                            EventInfo::new(line,
-                                           EventType::Type(
-                                               TypeStruct::new(
-                                                   Type::from(words[it]),
-                                                              get_before(words[it + 1],
-                                                              STOP_CHARACTERS)))));
-                        it += 1;
-                    }
-                    "!!" => {
-                        event_list.push(EventInfo::new(line,
-                            EventType::Type(TypeStruct::new(Type::from("macro"),
-                                                            &format!("{}!{}",
-                                                                     words[it - 1],
-                                                                     words[it + 1])))));
-                        it += 1;
-                    }
-                    "!?" => {
-                        event_list.push(EventInfo::new(line,
-                            EventType::Type(TypeStruct::new(Type::from("macro"),
-                                                            &format!("{}!", words[it - 1])))));
-                    }
-                    "impl" => {
-                        event_list.push(
-                            EventInfo::new(line,
-                                           EventType::Type(
-                                               TypeStruct::new(
-                                                   Type::Impl,
-                                                   &join(&get_impl(&words,
-                                                                   &mut it,
-                                                                   &mut line), " ")))));
-                    }
-                    "{" => {
-                        event_list.push(EventInfo::new(line, EventType::InScope));
-                    }
-                    "}" => {
-                        event_list.push(EventInfo::new(line, EventType::OutScope));
-                    }
-                    "\n" => {
-                        line += 1;
-                    }
-                    s if s.starts_with("#[") || s.starts_with("#![") => {
-                        while words[it + 1] != "\n" {
-                            it += 1;
-                        }
-                    }
-                    _ => {
-                        event_list.push(
-                            EventInfo::new(line,
-                                           EventType::Type(TypeStruct::new(Type::Unknown,
-                                                                           words[it]))));
-                    }
-                }
-                it += 1;
+fn build_event_inner(
+    it: &mut usize,
+    line: &mut usize,
+    words: &[&str],
+    event_list: &mut Vec<EventInfo>,
+    comment_lines: &mut Vec<usize>,
+    b_content: &[String],
+) {
+    let mut par_count = 0;
+    while *it < words.len() {
+        match words[*it] {
+            c if c.starts_with("\"") => move_to(&words, it, "\"", line),
+            c if c.starts_with("'") => move_to(&words, it, "'", line),
+            c if c.starts_with("r#") => {
+                let end = c.split("#\"").next().unwrap().replace("\"", "").replace("r", "");
+                move_to(&words, it, &format!("\"{}", end), line)
             }
-            Ok(ParseResult { event_list : clear_events(event_list),
-                             comment_lines : comment_lines,
-                             original_content : b_content,
-                           })
-        },
-        Err(e) => Err(e),
+            "///" => {
+                comment_lines.push(*line);
+                event_list.push(
+                    EventInfo::new(*line, EventType::Comment(b_content[*line].to_owned())));
+                move_to(&words, it, "\n", line);
+            }
+            "//!" => {
+                comment_lines.push(*line);
+                event_list.push(
+                    EventInfo::new(*line,
+                                   EventType::FileComment(b_content[*line].to_owned())));
+                if *line + 1 < b_content.len() && b_content[*line + 1].len() < 1 {
+                    comment_lines.push(*line + 1);
+                }
+                move_to(&words, it, "\n", line);
+            }
+            "/*!" => {
+                let mark = *line;
+                move_until(&words, it, "*/", line);
+                for pos in mark..*line {
+                    comment_lines.push(pos);
+                    event_list.push(
+                        EventInfo::new(*line,
+                                       EventType::FileComment(b_content[pos].to_owned())));
+                }
+                comment_lines.push(*line);
+                let mut removed = false;
+                if *line + 1 < b_content.len() && b_content[*line + 1].len() < 1 {
+                    comment_lines.push(*line + 1);
+                    removed = true;
+                }
+                event_list.push(
+                    EventInfo::new(*line, EventType::FileComment("*/".to_owned())));
+                if removed {
+                    event_list.push(
+                        EventInfo::new(*line, EventType::FileComment("".to_owned())));
+                }
+            }
+            "use" | "mod" => {
+                let mut name = words[*it + 1].to_owned();
+                let ty = words[*it];
+
+                if *line + 1 < b_content.len() && b_content[*line].ends_with("::{") {
+                    move_to(&words, it, "\n", line);
+                    name.push_str(&format!("{}", b_content[*line + 1].trim()));
+                }
+                event_list.push(
+                    EventInfo::new(*line,
+                                   EventType::Type(TypeStruct::new(Type::from(ty),
+                                                                   &name))));
+            }
+            "struct" |
+            "fn" |
+            "enum" |
+            "const" |
+            "static" |
+            "type" |
+            "trait" |
+            "macro_rules!" |
+            "flags" => {
+                event_list.push(
+                    EventInfo::new(*line,
+                                   EventType::Type(
+                                       TypeStruct::new(
+                                           Type::from(words[*it]),
+                                                      get_before(words[*it + 1],
+                                                      STOP_CHARACTERS)))));
+                *it += 1;
+                if words[*it - 1] == "macro_rules!" {
+                    build_event_inner(it, line, &words, &mut vec![],
+                                      &mut vec![], &b_content);
+                } else {
+                    build_event_inner(it, line, &words, event_list,
+                                      comment_lines, &b_content);
+                }
+            }
+            "!!" => {
+                event_list.push(EventInfo::new(*line,
+                    EventType::Type(TypeStruct::new(Type::from("macro"),
+                                                    &format!("{}!{}",
+                                                             words[*it - 1],
+                                                             words[*it + 1])))));
+                *it += 1;
+            }
+            "!?" => {
+                event_list.push(EventInfo::new(*line,
+                    EventType::Type(TypeStruct::new(Type::from("macro"),
+                                                    &format!("{}!", words[*it - 1])))));
+            }
+            "impl" => {
+                event_list.push(
+                    EventInfo::new(*line,
+                                   EventType::Type(
+                                       TypeStruct::new(
+                                           Type::Impl,
+                                           &join(&get_impl(&words,
+                                                           it,
+                                                           line), " ")))));
+            }
+            "{" => {
+                par_count += 1;
+                event_list.push(EventInfo::new(*line, EventType::InScope));
+            }
+            "}" => {
+                par_count -= 1;
+                event_list.push(EventInfo::new(*line, EventType::OutScope));
+                if par_count <= 0 {
+                    return
+                }
+            }
+            "\n" => {
+                *line += 1;
+            }
+            s if s.starts_with("#[") || s.starts_with("#![") => {
+                while words[*it + 1] != "\n" {
+                    *it += 1;
+                }
+            }
+            _ => {
+                event_list.push(
+                    EventInfo::new(*line,
+                                   EventType::Type(TypeStruct::new(Type::Unknown,
+                                                                   words[*it]))));
+            }
+        }
+        *it += 1;
     }
+}
+
+pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
+    let mut f = File::open(path)?;
+    let mut b_content = String::new();
+    f.read_to_string(&mut b_content).unwrap();
+    let content = clean_input(&b_content);
+    let b_content: Vec<String> = b_content.split('\n').map(|s| s.to_owned()).collect();
+    let words: Vec<&str> = content.split(' ').filter(|s| s.len() > 0).collect();
+    let mut it = 0;
+    let mut line = 0;
+    let mut event_list = vec!();
+    let mut comment_lines = vec!();
+
+    build_event_inner(&mut it, &mut line, &words, &mut event_list, &mut comment_lines, &b_content);
+    Ok(ParseResult {
+        event_list : clear_events(event_list),
+        comment_lines : comment_lines,
+        original_content : b_content,
+    })
+
 }
 
 fn unformat_comment(c: &str) -> String {
@@ -407,7 +438,7 @@ fn unformat_comment(c: &str) -> String {
     c.replace("*/", "")
      .split("\n")
      .into_iter()
-     .map(|s| remove_prepend(s.trim_left())).collect::<Vec<String>>().join("\n")
+     .map(|s| remove_prepend(s.trim_start())).collect::<Vec<String>>().join("\n")
 }
 
 pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
@@ -419,8 +450,8 @@ pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
                 return;
             }
             writeln!(out_file, "{}", &write_file(path)).unwrap();
-            let mut current : Option<TypeStruct> = None;
-            let mut waiting_type : Option<TypeStruct> = None;
+            let mut current: Option<TypeStruct> = None;
+            let mut waiting_type: Option<TypeStruct> = None;
             let mut it = 0;
 
             while it < parse_result.event_list.len() {
@@ -429,15 +460,15 @@ pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
                         if t.ty != Type::Unknown {
                             waiting_type = Some(t.clone());
                         }
-                    },
+                    }
                     EventType::InScope => {
                         current = add_to_type_scope(&current, &waiting_type);
                         waiting_type = None;
-                    },
+                    }
                     EventType::OutScope => {
                         current = type_out_scope(&current);
                         waiting_type = None;
-                    },
+                    }
                     EventType::FileComment(ref c) => {
                         // first, we need to find if it belongs to a mod
                         if get_mod(&current) == false {
@@ -459,7 +490,7 @@ pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
                         }
                         write!(out_file, "{}", comments).unwrap();
                         continue;
-                    },
+                    }
                     EventType::Comment(ref c) => {
                         let mut comments = format!("{}\n", c);
 
@@ -467,7 +498,9 @@ pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
                         while it < parse_result.event_list.len() &&
                               match parse_result.event_list[it].event {
                             EventType::Comment(ref c) => {
-                                comments.push_str(&format!("{}\n", c));
+                                if !comments.is_empty() {
+                                    comments.push_str(&format!("{}\n", c));
+                                }
                                 true
                             }
                             EventType::Type(_) => {
@@ -505,22 +538,12 @@ pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
                                                         false
                                                     }
                                                 } else {
-                                                    if t.name == "pub" {
-                                                        true
-                                                    } else {
-                                                        false
-                                                    }
+                                                    t.name == "pub"
                                                 }
                                             }
-                                            None => {
-                                                if t.name == "pub" {
-                                                    true
-                                                } else {
-                                                    false
-                                                }
-                                            },
+                                            None => t.name == "pub",
                                         }
-                                    },
+                                    }
                                     _ => {
                                         let tmp = add_to_type_scope(&current, &Some(t.clone()));
                                         write!(out_file, "{}",
@@ -536,7 +559,7 @@ pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
                             it += 1;
                         }
                         continue;
-                    },
+                    }
                 }
                 it += 1;
             }
