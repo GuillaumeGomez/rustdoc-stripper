@@ -438,7 +438,7 @@ fn unformat_comment(c: &str) -> String {
     c.replace("*/", "")
      .split("\n")
      .into_iter()
-     .map(|s| remove_prepend(s.trim_left())).collect::<Vec<String>>().join("\n")
+     .map(|s| remove_prepend(s.trim_start())).collect::<Vec<String>>().join("\n")
 }
 
 pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,

@@ -99,7 +99,7 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                 file_comment = true;
             } else {
                 while line > 0 && (line + *decal) > 0 &&
-                      original_content[line + *decal - 1].trim_left().starts_with("#") {
+                      original_content[line + *decal - 1].trim_start().starts_with("#") {
                     line -= 1;
                 }
             }
@@ -390,7 +390,7 @@ fn sub_erase_macro_path(ty: Option<Box<TypeStruct>>, is_parent: bool) -> Option<
 
 fn erase_macro_path(ty: Option<TypeStruct>) -> Option<TypeStruct> {
     if let Some(t) = ty {
-        Some((*sub_erase_macro_path(Some(Box::new(t)), false).unwrap()))
+        Some(*sub_erase_macro_path(Some(Box::new(t)), false).unwrap())
     } else {
         None
     }

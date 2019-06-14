@@ -26,14 +26,14 @@ use consts::{
 };
 use types::TypeStruct;
 
-pub fn loop_over_files<S>(path: &Path, func: &mut FnMut(&Path, &str),
+pub fn loop_over_files<S>(path: &Path, func: &mut dyn FnMut(&Path, &str),
     files_to_ignore: &[S], verbose: bool)
 where S: AsRef<Path> {
     do_loop_over_files(path.as_ref(), path.as_ref(), func, files_to_ignore, verbose)
 }
 
 pub fn do_loop_over_files<S>(work_dir: &Path, path: &Path,
-    func: &mut FnMut(&Path, &str), files_to_ignore: &[S], verbose: bool)
+    func: &mut dyn FnMut(&Path, &str), files_to_ignore: &[S], verbose: bool)
 where S: AsRef<Path> {
     match fs::read_dir(path) {
         Ok(it) => {
@@ -53,7 +53,7 @@ where S: AsRef<Path> {
     }
 }
 
-fn check_path_type<S>(work_dir: &Path, path: &Path, func: &mut FnMut(&Path, &str),
+fn check_path_type<S>(work_dir: &Path, path: &Path, func: &mut dyn FnMut(&Path, &str),
     files_to_ignore: &[S], verbose: bool)
 where S: AsRef<Path> {
     match fs::metadata(path) {
@@ -106,7 +106,7 @@ fn strip_prefix<'a>(self_: &'a Path, base: &'a Path)
                      -> Result<&'a Path, ()> {
     iter_after(self_.components(), base.components())
         .map(|c| c.as_path())
-        .ok_or((()))
+        .ok_or(())
 }
 
 fn iter_after<A, I, J>(mut iter: I, mut prefix: J) -> Option<I>
@@ -137,8 +137,8 @@ pub fn write_comment(id: &TypeStruct, comment: &str, ignore_macro: bool) -> Stri
         format!("{}{:?}{}\n{}", MOD_COMMENT, id, END_INFO, comment)
     }
 }
-pub fn write_item_doc<F>(w: &mut Write, id: &TypeStruct, f: F) -> io::Result<()>
-where F: FnOnce(&mut Write) -> io::Result<()> {
+pub fn write_item_doc<F>(w: &mut dyn Write, id: &TypeStruct, f: F) -> io::Result<()>
+where F: FnOnce(&mut dyn Write) -> io::Result<()> {
     try!(writeln!(w, "{}{}{}", MOD_COMMENT, id, END_INFO));
     f(w)
 }
@@ -159,6 +159,6 @@ pub fn write_file(file: &str) -> String {
     format!("{}{}{}", FILE, file, END_INFO)
 }
 
-pub fn write_file_name(w: &mut Write, name: Option<&str>) -> io::Result<()> {
+pub fn write_file_name(w: &mut dyn Write, name: Option<&str>) -> io::Result<()> {
     writeln!(w, "{}{}{}", FILE, name.unwrap_or("*"), END_INFO)
 }
