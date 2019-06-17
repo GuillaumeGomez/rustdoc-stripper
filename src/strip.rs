@@ -258,8 +258,9 @@ fn build_event_inner(
     event_list: &mut Vec<EventInfo>,
     comment_lines: &mut Vec<usize>,
     b_content: &[String],
+    mut par_count: Option<isize>,
 ) {
-    let mut par_count = 0;
+    let mut waiting_for_macro = false;
     while *it < words.len() {
         match words[*it] {
             c if c.starts_with("\"") => move_to(&words, it, "\"", line),
@@ -336,13 +337,7 @@ fn build_event_inner(
                                                       get_before(words[*it + 1],
                                                       STOP_CHARACTERS)))));
                 *it += 1;
-                if words[*it - 1] == "macro_rules!" {
-                    build_event_inner(it, line, &words, &mut vec![],
-                                      &mut vec![], &b_content);
-                } else {
-                    build_event_inner(it, line, &words, event_list,
-                                      comment_lines, &b_content);
-                }
+                waiting_for_macro = words[*it - 1] == "macro_rules!";
             }
             "!!" => {
                 event_list.push(EventInfo::new(*line,
@@ -368,15 +363,31 @@ fn build_event_inner(
                                                            line), " ")))));
             }
             "{" => {
-                par_count += 1;
+                if let Some(ref mut par_count) = par_count {
+                    *par_count += 1;
+                }
                 event_list.push(EventInfo::new(*line, EventType::InScope));
+                if waiting_for_macro {
+                    build_event_inner(
+                        it,
+                        line,
+                        &words,
+                        &mut vec![],
+                        &mut vec![],
+                        &b_content,
+                        Some(1),
+                    );
+                    waiting_for_macro = false;
+                }
             }
             "}" => {
-                par_count -= 1;
-                event_list.push(EventInfo::new(*line, EventType::OutScope));
-                if par_count <= 0 {
-                    return
+                if let Some(ref mut par_count) = par_count {
+                    *par_count -= 1;
+                    if *par_count <= 0 {
+                        return
+                    }
                 }
+                event_list.push(EventInfo::new(*line, EventType::OutScope));
             }
             "\n" => {
                 *line += 1;
@@ -409,7 +420,15 @@ pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
     let mut event_list = vec!();
     let mut comment_lines = vec!();
 
-    build_event_inner(&mut it, &mut line, &words, &mut event_list, &mut comment_lines, &b_content);
+    build_event_inner(
+        &mut it,
+        &mut line,
+        &words,
+        &mut event_list,
+        &mut comment_lines,
+        &b_content,
+        None,
+    );
     Ok(ParseResult {
         event_list : clear_events(event_list),
         comment_lines : comment_lines,
