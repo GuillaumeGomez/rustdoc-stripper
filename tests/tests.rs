@@ -52,7 +52,7 @@ mod Bar {
 }
 "#;
 
-const BASIC_STRIPPED : &'static str = r#"struct Foo {
+const BASIC_STRIPPED: &'static str = r#"struct Foo {
     A: u32,
 }
 
@@ -95,7 +95,55 @@ yeay
 "#, file)
 }
 
-const BASIC2 : &'static str = r#"
+fn gen_file(temp_dir: &TempDir, filename: &str, content: &str) -> File {
+    let mut f = File::create(temp_dir.path().join(filename)).expect("gen_file");
+    write!(f, "{}", content).unwrap();
+    f
+}
+
+fn compare_files(expected_content: &str, file: &Path) {
+    let mut f = File::open(file).expect("compare_files '{}'");
+    let mut buf = String::new();
+    f.read_to_string(&mut buf).unwrap();
+    println!("");
+    for (l, r) in expected_content.lines().zip(buf.lines()) {
+        assert_eq!(l, r, "compare_files0 failed");
+        println!("{}", l);
+    }
+    assert_eq!(expected_content, &buf, "compare_files1 failed");
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test_strip() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC);
+    {
+        let mut f = gen_file(&temp_dir, comment_file, "");
+        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
+    }
+    compare_files(&get_basic_md(test_file), &temp_dir.path().join(comment_file));
+    compare_files(BASIC_STRIPPED, &temp_dir.path().join(test_file));
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test_regeneration() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC_STRIPPED);
+    gen_file(&temp_dir, comment_file, &get_basic_md(test_file));
+    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
+                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
+                                          false, false);
+    compare_files(BASIC, &temp_dir.path().join(test_file));
+}
+
+
+const BASIC2: &'static str = r#"
 use Bin;
 use Box;
 use Buildable;
@@ -287,6 +335,35 @@ of the `Dialog` struct.
 Adds a button with the given text
 "#;
 
+#[allow(unused_must_use)]
+#[test]
+fn test2_strip() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC2);
+    {
+        let mut f = gen_file(&temp_dir, comment_file, "");
+        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, true);
+    }
+    compare_files(&get_basic2_md(test_file), &temp_dir.path().join(comment_file));
+    compare_files(BASIC2_STRIPPED, &temp_dir.path().join(test_file));
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test2_regeneration() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC2_STRIPPED);
+    gen_file(&temp_dir, comment_file, BASIC2_MD);
+    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
+                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
+                                          true, false);
+    compare_files(BASIC2, &temp_dir.path().join(test_file));
+}
+
 const BASIC3 : &'static str = r#"///struct Foo comment
 struct Foo;
 "#;
@@ -303,6 +380,35 @@ fn get_basic3_md(file: &str) -> String {
 <!-- struct Foo -->
 struct Foo comment
 "#, file)
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test3_strip() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC3);
+    {
+        let mut f = gen_file(&temp_dir, comment_file, "");
+        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
+    }
+    compare_files(&get_basic3_md(test_file), &temp_dir.path().join(comment_file));
+    compare_files(BASIC3_STRIPPED, &temp_dir.path().join(test_file));
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test3_regeneration() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC3_STRIPPED);
+    gen_file(&temp_dir, comment_file, &get_basic3_md(test_file));
+    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
+                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
+                                          false, false);
+    compare_files(BASIC3_REGEN, &temp_dir.path().join(test_file));
 }
 
 const BASIC4 : &'static str = r#"// Copyright 2013-2015, The Gtk-rs Project Developers.
@@ -349,6 +455,35 @@ fn get_basic4_md() -> String {
     String::new()
 }
 
+#[allow(unused_must_use)]
+#[test]
+fn test4_strip() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC4);
+    {
+        let mut f = gen_file(&temp_dir, comment_file, "");
+        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
+    }
+    compare_files(&get_basic4_md(), &temp_dir.path().join(comment_file));
+    compare_files(BASIC4, &temp_dir.path().join(test_file));
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test4_regeneration() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC4);
+    gen_file(&temp_dir, comment_file, &get_basic4_md());
+    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
+                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
+                                          false, false);
+    compare_files(BASIC4, &temp_dir.path().join(test_file));
+}
+
 const BASIC5 : &'static str = r#"/// Here is a flags!
 pub flags SomeFlags : u32 {
     /// a const
@@ -373,6 +508,35 @@ a const
 <!-- flags SomeFlags::const HIDDEN -->
 another
 "#, file)
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test5_strip() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC5);
+    {
+        let mut f = gen_file(&temp_dir, comment_file, "");
+        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
+    }
+    compare_files(&get_basic5_md(test_file), &temp_dir.path().join(comment_file));
+    compare_files(BASIC5_STRIPPED, &temp_dir.path().join(test_file));
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test5_regeneration() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC5_STRIPPED);
+    gen_file(&temp_dir, comment_file, &get_basic5_md(test_file));
+    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
+                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
+                                          false, false);
+    compare_files(BASIC5, &temp_dir.path().join(test_file));
 }
 
 const BASIC6 : &'static str = r#"/// not stripped comment
@@ -409,6 +573,21 @@ struct Bar comment
 "#, file)
 }
 
+// test if ignore_doc_commented option is working
+#[allow(unused_must_use)]
+#[test]
+fn test6_regeneration() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC6);
+    gen_file(&temp_dir, comment_file, &get_basic6_md(test_file));
+    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
+                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
+                                          false, true);
+    compare_files(BASIC6_REGEN, &temp_dir.path().join(test_file));
+}
+
 const BASIC7 : &'static str = r#"impl Foo {
     /// existing comment
     pub unsafe fn new() -> Foo {}
@@ -420,6 +599,21 @@ fn get_basic7_md(file: &str) -> String {
 <!-- impl Foo::fn new -->
 bad comment
 "#, file)
+}
+
+// test if ignore_doc_commented option is working
+#[allow(unused_must_use)]
+#[test]
+fn test7_regeneration() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC7);
+    gen_file(&temp_dir, comment_file, &get_basic7_md(test_file));
+    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
+                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
+                                          false, true);
+    compare_files(BASIC7, &temp_dir.path().join(test_file));
 }
 
 // The goal of this test is to check if inner macro_rules doc comments are ignored.
@@ -456,199 +650,6 @@ const BASIC8_STRIPPED : &'static str = r#"macro_rules! some_macro {
 
 fn get_basic8_md(_file: &str) -> String {
     "<!-- file basic.rs -->\n<!-- macro some_macro -->\nfoooo\n".to_owned()
-}
-
-fn gen_file(temp_dir: &TempDir, filename: &str, content: &str) -> File {
-    let mut f = File::create(temp_dir.path().join(filename)).expect("gen_file");
-    write!(f, "{}", content).unwrap();
-    f
-}
-
-fn compare_files(expected_content: &str, file: &Path) {
-    let mut f = File::open(file).expect("compare_files '{}'");
-    let mut buf = String::new();
-    f.read_to_string(&mut buf).unwrap();
-    println!("");
-    for (l, r) in expected_content.lines().zip(buf.lines()) {
-        assert_eq!(l, r, "compare_files0 failed");
-        println!("{}", l);
-    }
-    assert_eq!(expected_content, &buf, "compare_files1 failed");
-}
-
-#[allow(unused_must_use)]
-#[test]
-fn test_strip() {
-    let test_file = "basic.rs";
-    let comment_file = "basic.md";
-    let temp_dir = tempdir().unwrap();
-    gen_file(&temp_dir, test_file, BASIC);
-    {
-        let mut f = gen_file(&temp_dir, comment_file, "");
-        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
-    }
-    compare_files(&get_basic_md(test_file), &temp_dir.path().join(comment_file));
-    compare_files(BASIC_STRIPPED, &temp_dir.path().join(test_file));
-}
-
-#[allow(unused_must_use)]
-#[test]
-fn test_regeneration() {
-    let test_file = "basic.rs";
-    let comment_file = "basic.md";
-    let temp_dir = tempdir().unwrap();
-    gen_file(&temp_dir, test_file, BASIC_STRIPPED);
-    gen_file(&temp_dir, comment_file, &get_basic_md(test_file));
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false, false);
-    compare_files(BASIC, &temp_dir.path().join(test_file));
-}
-
-#[allow(unused_must_use)]
-#[test]
-fn test2_strip() {
-    let test_file = "basic.rs";
-    let comment_file = "basic.md";
-    let temp_dir = tempdir().unwrap();
-    gen_file(&temp_dir, test_file, BASIC2);
-    {
-        let mut f = gen_file(&temp_dir, comment_file, "");
-        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, true);
-    }
-    compare_files(&get_basic2_md(test_file), &temp_dir.path().join(comment_file));
-    compare_files(BASIC2_STRIPPED, &temp_dir.path().join(test_file));
-}
-
-#[allow(unused_must_use)]
-#[test]
-fn test2_regeneration() {
-    let test_file = "basic.rs";
-    let comment_file = "basic.md";
-    let temp_dir = tempdir().unwrap();
-    gen_file(&temp_dir, test_file, BASIC2_STRIPPED);
-    gen_file(&temp_dir, comment_file, BASIC2_MD);
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          true, false);
-    compare_files(BASIC2, &temp_dir.path().join(test_file));
-}
-
-#[allow(unused_must_use)]
-#[test]
-fn test3_strip() {
-    let test_file = "basic.rs";
-    let comment_file = "basic.md";
-    let temp_dir = tempdir().unwrap();
-    gen_file(&temp_dir, test_file, BASIC3);
-    {
-        let mut f = gen_file(&temp_dir, comment_file, "");
-        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
-    }
-    compare_files(&get_basic3_md(test_file), &temp_dir.path().join(comment_file));
-    compare_files(BASIC3_STRIPPED, &temp_dir.path().join(test_file));
-}
-
-#[allow(unused_must_use)]
-#[test]
-fn test3_regeneration() {
-    let test_file = "basic.rs";
-    let comment_file = "basic.md";
-    let temp_dir = tempdir().unwrap();
-    gen_file(&temp_dir, test_file, BASIC3_STRIPPED);
-    gen_file(&temp_dir, comment_file, &get_basic3_md(test_file));
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false, false);
-    compare_files(BASIC3_REGEN, &temp_dir.path().join(test_file));
-}
-
-#[allow(unused_must_use)]
-#[test]
-fn test4_strip() {
-    let test_file = "basic.rs";
-    let comment_file = "basic.md";
-    let temp_dir = tempdir().unwrap();
-    gen_file(&temp_dir, test_file, BASIC4);
-    {
-        let mut f = gen_file(&temp_dir, comment_file, "");
-        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
-    }
-    compare_files(&get_basic4_md(), &temp_dir.path().join(comment_file));
-    compare_files(BASIC4, &temp_dir.path().join(test_file));
-}
-
-#[allow(unused_must_use)]
-#[test]
-fn test4_regeneration() {
-    let test_file = "basic.rs";
-    let comment_file = "basic.md";
-    let temp_dir = tempdir().unwrap();
-    gen_file(&temp_dir, test_file, BASIC4);
-    gen_file(&temp_dir, comment_file, &get_basic4_md());
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false, false);
-    compare_files(BASIC4, &temp_dir.path().join(test_file));
-}
-
-#[allow(unused_must_use)]
-#[test]
-fn test5_strip() {
-    let test_file = "basic.rs";
-    let comment_file = "basic.md";
-    let temp_dir = tempdir().unwrap();
-    gen_file(&temp_dir, test_file, BASIC5);
-    {
-        let mut f = gen_file(&temp_dir, comment_file, "");
-        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
-    }
-    compare_files(&get_basic5_md(test_file), &temp_dir.path().join(comment_file));
-    compare_files(BASIC5_STRIPPED, &temp_dir.path().join(test_file));
-}
-
-#[allow(unused_must_use)]
-#[test]
-fn test5_regeneration() {
-    let test_file = "basic.rs";
-    let comment_file = "basic.md";
-    let temp_dir = tempdir().unwrap();
-    gen_file(&temp_dir, test_file, BASIC5_STRIPPED);
-    gen_file(&temp_dir, comment_file, &get_basic5_md(test_file));
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false, false);
-    compare_files(BASIC5, &temp_dir.path().join(test_file));
-}
-
-// test if ignore_doc_commented option is working
-#[allow(unused_must_use)]
-#[test]
-fn test6_regeneration() {
-    let test_file = "basic.rs";
-    let comment_file = "basic.md";
-    let temp_dir = tempdir().unwrap();
-    gen_file(&temp_dir, test_file, BASIC6);
-    gen_file(&temp_dir, comment_file, &get_basic6_md(test_file));
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false, true);
-    compare_files(BASIC6_REGEN, &temp_dir.path().join(test_file));
-}
-
-// test if ignore_doc_commented option is working
-#[allow(unused_must_use)]
-#[test]
-fn test7_regeneration() {
-    let test_file = "basic.rs";
-    let comment_file = "basic.md";
-    let temp_dir = tempdir().unwrap();
-    gen_file(&temp_dir, test_file, BASIC7);
-    gen_file(&temp_dir, comment_file, &get_basic7_md(test_file));
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false, true);
-    compare_files(BASIC7, &temp_dir.path().join(test_file));
 }
 
 #[allow(unused_must_use)]
