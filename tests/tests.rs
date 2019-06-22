@@ -680,3 +680,52 @@ fn test8_regeneration() {
                                           false, true);
     compare_files(BASIC8, &temp_dir.path().join(test_file));
 }
+
+const BASIC9: &'static str = r#"trait SettingsBackendExt: 'static {
+    /// Signals that the writability of all keys below a given path.
+    pub fn path_writable_changed() {}
+}
+"#;
+
+const BASIC9_STRIPPED: &'static str = r#"trait SettingsBackendExt: 'static {
+    pub fn path_writable_changed() {}
+}
+"#;
+
+fn get_basic9_md(file: &str) -> String {
+    format!(r#"<!-- file {} -->
+<!-- trait SettingsBackendExt::fn path_writable_changed -->
+Signals that the writability of all keys below a given path.
+"#, file)
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test9_strip() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC9);
+    {
+        let mut f = gen_file(&temp_dir, comment_file, "");
+        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
+    }
+    println!("Testing markdown");
+    compare_files(&get_basic9_md(test_file), &temp_dir.path().join(comment_file));
+    println!("Testing stripped file");
+    compare_files(BASIC9_STRIPPED, &temp_dir.path().join(test_file));
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test9_regeneration() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC9_STRIPPED);
+    gen_file(&temp_dir, comment_file, &get_basic9_md(test_file));
+    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
+                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
+                                          false, true);
+    compare_files(BASIC9, &temp_dir.path().join(test_file));
+}
