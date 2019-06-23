@@ -264,7 +264,7 @@ fn build_event_inner(
     while *it < words.len() {
         match words[*it] {
             c if c.starts_with("\"") => move_to(&words, it, "\"", line),
-            c if c.starts_with("'") => move_to(&words, it, "'", line),
+            // c if c.starts_with("'") => move_to(&words, it, "'", line),
             c if c.starts_with("r#") => {
                 let end = c.split("#\"").next().unwrap().replace("\"", "").replace("r", "");
                 move_to(&words, it, &format!("\"{}", end), line)
