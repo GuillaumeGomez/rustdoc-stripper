@@ -252,14 +252,7 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                 }
             }
             EventType::InScope => {
-                current = {
-                    let t = strip::add_to_type_scope(&current, &waiting_type);
-                    if ignore_macros {
-                        erase_macro_path(t)
-                    } else {
-                        t
-                    }
-                };
+                current = strip::add_to_type_scope(&current, &waiting_type);
                 waiting_type = None;
             }
             EventType::OutScope => {
@@ -378,12 +371,12 @@ fn sub_erase_macro_path(ty: Option<Box<TypeStruct>>, is_parent: bool) -> Option<
                 tmp.parent = sub_erase_macro_path(t.clone().parent, true);
                 Some(tmp)
             }
-        },
+        }
         Some(t) => {
             let mut tmp = t.clone();
             tmp.parent = sub_erase_macro_path(t.parent, true);
             Some(tmp)
-        },
+        }
         None => None,
     }
 }
@@ -478,10 +471,10 @@ where S: Deref<Target = str>,
                     comments.push(line[..].to_owned());
                 }
                 State::File {
-                    file: file,
-                    infos: infos,
+                    file,
+                    infos,
                     ty: if ignore_macros { erase_macro_path(ty) } else { ty },
-                    comments: comments,
+                    comments,
                 }
             },
         }
