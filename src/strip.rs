@@ -24,14 +24,18 @@ const STOP_CHARACTERS : &'static [char] = &['\t', '\n', '\r', '<', '{', ':', ';'
 const COMMENT_ID : &'static [&'static str] = &["//", "/*"];
 const DOC_COMMENT_ID : &'static [&'static str] = &["///", "/*!", "//!"];
 
-fn move_to(words: &[&str], it: &mut usize, limit: &str, line: &mut usize) {
-    while (*it + 1) < words.len() && limit.contains(words[*it + 1]) == false {
+fn move_to(words: &[&str], it: &mut usize, limit: &str, line: &mut usize, start_remove: &str) {
+    if words[*it][start_remove.len()..].contains(&limit) {
+        return;
+    }
+    *it += 1;
+    while *it < words.len() && words[*it].contains(limit) == false {
         if words[*it] == "\n" {
             *line += 1;
         }
         *it += 1;
     }
-    if words[*it] == "\n" {
+    if *it < words.len() && words[*it] == "\n" {
         *line += 1;
     }
 }
@@ -39,7 +43,7 @@ fn move_to(words: &[&str], it: &mut usize, limit: &str, line: &mut usize) {
 fn move_until(words: &[&str], it: &mut usize, limit: &str, line: &mut usize) {
     let alternative1 = format!("{};", limit);
     let alternative2 = format!("{}\n", limit);
-    while (*it + 1) < words.len() &&
+    while *it < words.len() &&
           !words[*it].ends_with(limit) &&
           !words[*it].ends_with(&alternative1) &&
           !words[*it].ends_with(&alternative2) {
@@ -55,11 +59,11 @@ fn get_before<'a>(word: &'a str, limits: &[char]) -> &'a str {
 fn get_impl(words: &[&str], it: &mut usize, line: &mut usize) -> Vec<String> {
     let mut v = vec!();
 
-    while (*it + 1) < words.len() {
+    while *it + 1 < words.len() {
         if words[*it] == "\n" {
             *line += 1;
         }
-        if words[(*it + 1)] == "{" || words[(*it + 1)] == ";" {
+        if words[*it + 1] == "{" || words[*it + 1] == ";" {
             break;
         }
         *it += 1;
@@ -195,16 +199,16 @@ fn clean_input(mut s: &str) -> String {
                     ret.push_str(" \n ");
                 }
                 after
-            },
+            }
             BlockKind::DocComment((s, doc_comment, after)) => {
                 ret.push_str(&transform_code(&s));
                 ret.push_str(&doc_comment);
                 after
-            },
+            }
             BlockKind::Other(s) => {
                 ret.push_str(&transform_code(s));
                 return ret
-            },
+            }
         };
     }
 }
@@ -263,17 +267,18 @@ fn build_event_inner(
     let mut waiting_for_macro = false;
     while *it < words.len() {
         match words[*it] {
-            c if c.starts_with("\"") => move_to(&words, it, "\"", line),
+            c if c.starts_with("\"") => move_to(&words, it, "\"", line, "\""),
+            c if c.starts_with("b\"") => move_to(&words, it, "\"", line, "b\""),
             // c if c.starts_with("'") => move_to(&words, it, "'", line),
             c if c.starts_with("r#") => {
                 let end = c.split("#\"").next().unwrap().replace("\"", "").replace("r", "");
-                move_to(&words, it, &format!("\"{}", end), line)
+                move_to(&words, it, &format!("\"{}", end), line, "r#");
             }
             "///" => {
                 comment_lines.push(*line);
                 event_list.push(
                     EventInfo::new(*line, EventType::Comment(b_content[*line].to_owned())));
-                move_to(&words, it, "\n", line);
+                move_to(&words, it, "\n", line, "");
             }
             "//!" => {
                 comment_lines.push(*line);
@@ -283,7 +288,7 @@ fn build_event_inner(
                 if *line + 1 < b_content.len() && b_content[*line + 1].len() < 1 {
                     comment_lines.push(*line + 1);
                 }
-                move_to(&words, it, "\n", line);
+                move_to(&words, it, "\n", line, "");
             }
             "/*!" => {
                 let mark = *line;
@@ -312,7 +317,7 @@ fn build_event_inner(
                 let ty = words[*it];
 
                 if *line + 1 < b_content.len() && b_content[*line].ends_with("::{") {
-                    move_to(&words, it, "\n", line);
+                    move_to(&words, it, "\n", line, "");
                     name.push_str(&format!("{}", b_content[*line + 1].trim()));
                 }
                 event_list.push(
@@ -329,6 +334,9 @@ fn build_event_inner(
             "trait" |
             "macro_rules!" |
             "flags" => {
+                if *it + 1 >= words.len() {
+                    break
+                }
                 event_list.push(
                     EventInfo::new(*line,
                                    EventType::Type(
@@ -336,8 +344,8 @@ fn build_event_inner(
                                            Type::from(words[*it]),
                                                       get_before(words[*it + 1],
                                                       STOP_CHARACTERS)))));
+                waiting_for_macro = words[*it] == "macro_rules!";
                 *it += 1;
-                waiting_for_macro = words[*it - 1] == "macro_rules!";
             }
             "!!" => {
                 event_list.push(EventInfo::new(*line,
@@ -393,7 +401,11 @@ fn build_event_inner(
                 *line += 1;
             }
             s if s.starts_with("#[") || s.starts_with("#![") => {
-                while words[*it + 1] != "\n" {
+                while *it < words.len() {
+                    *line += words[*it].split("\n").count() - 1;
+                    if words[*it].contains("]") {
+                        break;
+                    }
                     *it += 1;
                 }
             }
@@ -430,9 +442,9 @@ pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
         None,
     );
     Ok(ParseResult {
-        event_list : clear_events(event_list),
-        comment_lines : comment_lines,
-        original_content : b_content,
+        event_list: clear_events(event_list),
+        comment_lines,
+        original_content: b_content,
     })
 
 }
@@ -517,9 +529,7 @@ pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
                         while it < parse_result.event_list.len() &&
                               match parse_result.event_list[it].event {
                             EventType::Comment(ref c) => {
-                                if !comments.is_empty() {
-                                    comments.push_str(&format!("{}\n", c));
-                                }
+                                comments.push_str(&format!("{}\n", c));
                                 true
                             }
                             EventType::Type(_) => {
