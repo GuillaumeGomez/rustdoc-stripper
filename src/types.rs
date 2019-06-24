@@ -15,12 +15,14 @@
 use std::fmt::{Debug, Display, Error, Formatter};
 use std::borrow::Borrow;
 
+#[derive(Debug, Clone)]
 pub struct ParseResult {
     pub event_list: Vec<EventInfo>,
     pub comment_lines: Vec<usize>,
     pub original_content : Vec<String>,
 }
 
+#[derive(Clone)]
 pub struct EventInfo {
     pub line: usize,
     pub event: EventType,
@@ -41,6 +43,7 @@ impl Debug for EventInfo {
     }
 }
 
+#[derive(Clone)]
 pub enum EventType {
     Comment(String),
     FileComment(String),
