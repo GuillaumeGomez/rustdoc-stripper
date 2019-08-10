@@ -190,7 +190,7 @@ fn main() {
                 return;
             }
             s => {
-                if s.chars().next().unwrap() != '-' {
+                if !s.starts_with('-') {
                     println!("Unknown option: '{}'", s);
                     return;
                 }
@@ -250,7 +250,7 @@ fn main() {
         return;
     }
 
-    if args.strip == true || (args.strip == false && args.regenerate == false) {
+    if !args.regenerate || args.strip {
         let comments_path = Path::new(&out_file);
 
         if comments_path.exists() {
