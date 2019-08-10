@@ -20,7 +20,7 @@ use std::io::prelude::*;
 use std::path::Path;
 use tempfile::{TempDir, tempdir};
 
-const BASIC : &'static str = r#"//! File comment
+const BASIC : &str = r#"//! File comment
 //! three
 //! lines
 
@@ -52,7 +52,7 @@ mod Bar {
 }
 "#;
 
-const BASIC_STRIPPED: &'static str = r#"struct Foo {
+const BASIC_STRIPPED: &str = r#"struct Foo {
     A: u32,
 }
 
@@ -105,7 +105,7 @@ fn compare_files(expected_content: &str, file: &Path) {
     let mut f = File::open(file).expect("compare_files '{}'");
     let mut buf = String::new();
     f.read_to_string(&mut buf).unwrap();
-    println!("");
+    println!();
     for (l, r) in expected_content.lines().zip(buf.lines()) {
         assert_eq!(l, r, "compare_files0 failed");
         println!("{}", l);
@@ -143,7 +143,7 @@ fn test_regeneration() {
 }
 
 
-const BASIC2: &'static str = r#"
+const BASIC2: &str = r#"
 use Bin;
 use Box;
 use Buildable;
@@ -213,7 +213,7 @@ pub trait DialogExt {
 }
 "#;
 
-const BASIC2_STRIPPED : &'static str = r#"
+const BASIC2_STRIPPED : &str = r#"
 use Bin;
 use Box;
 use Buildable;
@@ -293,7 +293,7 @@ Adds a button with the given text
 "#, file)
 }
 
-const BASIC2_MD: &'static str = r#"<!-- file * -->
+const BASIC2_MD: &str = r#"<!-- file * -->
 <!-- struct Dialog -->
 Dialog boxes are a convenient way to prompt the user for a small amount
 of input, e.g. to display a message, ask a question, or anything else
@@ -364,14 +364,14 @@ fn test2_regeneration() {
     compare_files(BASIC2, &temp_dir.path().join(test_file));
 }
 
-const BASIC3 : &'static str = r#"///struct Foo comment
+const BASIC3 : &str = r#"///struct Foo comment
 struct Foo;
 "#;
 
-const BASIC3_STRIPPED : &'static str = r#"struct Foo;
+const BASIC3_STRIPPED : &str = r#"struct Foo;
 "#;
 
-const BASIC3_REGEN : &'static str = r#"/// struct Foo comment
+const BASIC3_REGEN : &str = r#"/// struct Foo comment
 struct Foo;
 "#;
 
@@ -411,7 +411,7 @@ fn test3_regeneration() {
     compare_files(BASIC3_REGEN, &temp_dir.path().join(test_file));
 }
 
-const BASIC4 : &'static str = r#"// Copyright 2013-2015, The Gtk-rs Project Developers.
+const BASIC4 : &str = r#"// Copyright 2013-2015, The Gtk-rs Project Developers.
 // See the COPYRIGHT file at the top-level directory of this distribution.
 // Licensed under the MIT license, see the LICENSE file or <http://opensource.org/licenses/MIT>
 
@@ -484,7 +484,7 @@ fn test4_regeneration() {
     compare_files(BASIC4, &temp_dir.path().join(test_file));
 }
 
-const BASIC5 : &'static str = r#"/// Here is a flags!
+const BASIC5 : &str = r#"/// Here is a flags!
 pub flags SomeFlags : u32 {
     /// a const
     const VISIBLE = 1,
@@ -493,7 +493,7 @@ pub flags SomeFlags : u32 {
 }
 "#;
 
-const BASIC5_STRIPPED : &'static str = r#"pub flags SomeFlags : u32 {
+const BASIC5_STRIPPED : &str = r#"pub flags SomeFlags : u32 {
     const VISIBLE = 1,
     const HIDDEN = 2,
 }
@@ -539,7 +539,7 @@ fn test5_regeneration() {
     compare_files(BASIC5, &temp_dir.path().join(test_file));
 }
 
-const BASIC6 : &'static str = r#"/// not stripped comment
+const BASIC6 : &str = r#"/// not stripped comment
 struct Foo;
 
 impl Foo {
@@ -550,7 +550,7 @@ impl Foo {
 struct Bar;
 "#;
 
-const BASIC6_REGEN : &'static str = r#"/// not stripped comment
+const BASIC6_REGEN : &str = r#"/// not stripped comment
 struct Foo;
 
 impl Foo {
@@ -588,7 +588,7 @@ fn test6_regeneration() {
     compare_files(BASIC6_REGEN, &temp_dir.path().join(test_file));
 }
 
-const BASIC7 : &'static str = r#"impl Foo {
+const BASIC7 : &str = r#"impl Foo {
     /// existing comment
     pub unsafe fn new() -> Foo {}
 }
@@ -617,7 +617,7 @@ fn test7_regeneration() {
 }
 
 // The goal of this test is to check if inner macro_rules doc comments are ignored.
-const BASIC8: &'static str = r#"/// foooo
+const BASIC8: &str = r#"/// foooo
 macro_rules! some_macro {
     ($constructor_ffi: ident) => {
         /// Takes full ownership of the output stream,
@@ -633,7 +633,7 @@ macro_rules! some_macro {
 }
 "#;
 
-const BASIC8_STRIPPED : &'static str = r#"macro_rules! some_macro {
+const BASIC8_STRIPPED : &str = r#"macro_rules! some_macro {
     ($constructor_ffi: ident) => {
         /// Takes full ownership of the output stream,
         /// which is not allowed to borrow any lifetime shorter than `'static`.
@@ -681,13 +681,13 @@ fn test8_regeneration() {
     compare_files(BASIC8, &temp_dir.path().join(test_file));
 }
 
-const BASIC9: &'static str = r#"trait SettingsBackendExt: 'static {
+const BASIC9: &str = r#"trait SettingsBackendExt: 'static {
     /// Signals that the writability of all keys below a given path.
     pub fn path_writable_changed() {}
 }
 "#;
 
-const BASIC9_STRIPPED: &'static str = r#"trait SettingsBackendExt: 'static {
+const BASIC9_STRIPPED: &str = r#"trait SettingsBackendExt: 'static {
     pub fn path_writable_changed() {}
 }
 "#;
@@ -730,7 +730,7 @@ fn test9_regeneration() {
     compare_files(BASIC9, &temp_dir.path().join(test_file));
 }
 
-const BASIC10: &'static str = r#"// This file was generated by gir (https://github.com/gtk-rs/gir)
+const BASIC10: &str = r#"// This file was generated by gir (https://github.com/gtk-rs/gir)
 impl Device {
     /// Determines information about the current keyboard grab.
     /// This is not public API and must not be used by applications.
@@ -801,7 +801,7 @@ impl Device {
 }
 "#;
 
-const BASIC10_STRIPPED: &'static str = r#"// This file was generated by gir (https://github.com/gtk-rs/gir)
+const BASIC10_STRIPPED: &str = r#"// This file was generated by gir (https://github.com/gtk-rs/gir)
 impl Device {
     #[cfg_attr(feature = "v3_16", deprecated)]
     pub fn grab_info_libgtk_only(display: &Display, device: &Device) -> Option<(Window, bool)> {
@@ -955,7 +955,7 @@ fn test10_regeneration4() {
     compare_files(BASIC10, &temp_dir.path().join(test_file));
 }
 
-const BASIC11: &'static str = r#"// This file was generated by gir (https://github.com/gtk-rs/gir)
+const BASIC11: &str = r#"// This file was generated by gir (https://github.com/gtk-rs/gir)
 impl Device {
     /// The ::changed signal is emitted either when the `Device`
     /// has changed the number of either axes or keys. For example
@@ -1015,7 +1015,7 @@ impl Device {
 }
 "#;
 
-const BASIC11_STRIPPED: &'static str = r#"// This file was generated by gir (https://github.com/gtk-rs/gir)
+const BASIC11_STRIPPED: &str = r#"// This file was generated by gir (https://github.com/gtk-rs/gir)
 impl Device {
     pub fn connect_changed<F: Fn(&Device) + 'static>(&self, f: F) -> SignalHandlerId {
         unsafe extern "C" fn changed_trampoline<F: Fn(&Device) + 'static>(

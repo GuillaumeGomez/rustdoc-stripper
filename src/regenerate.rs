@@ -28,6 +28,8 @@ use consts::{
     END_INFO,
 };
 
+type Infos = HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<String>)>>;
+
 fn gen_indent(indent: usize) -> String {
     iter::repeat("    ").take(indent).collect::<Vec<&str>>().join("")
 }
@@ -58,6 +60,7 @@ fn regenerate_comment(is_file_comment: bool, position: usize, indent: usize, com
                                     if is_empty { "" } else { &comment }));
 }
 
+#[allow(clippy::useless_let_if_seq)]
 fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                           to_find: &Option<TypeStruct>,
                           mut line: usize,
@@ -94,16 +97,16 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
         } {
             let mut file_comment = false;
 
-            if elements[pos].1.len() > 0 && elements[pos].1[0].starts_with("//!") {
+            if !elements[pos].1.is_empty() && elements[pos].1[0].starts_with("//!") {
                 line += 1;
                 file_comment = true;
             } else {
                 while line > 0 && (line + *decal) > 0 &&
-                      original_content[line + *decal - 1].trim_start().starts_with("#") {
+                      original_content[line + *decal - 1].trim_start().starts_with('#') {
                     line -= 1;
                 }
             }
-            for comment in (&elements[pos].1).into_iter().skip(if file_comment { 1 } else { 0 }) {
+            for comment in (&elements[pos].1).iter().skip(if file_comment { 1 } else { 0 }) {
                 let depth = if let Some(ref e) = elements[pos].0 {
                     e.get_depth(ignore_macros)
                 } else {
@@ -122,7 +125,7 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
 
 // The hashmap key is `Some(file name)` or `None` for entries that ignore file name
 pub fn regenerate_comments(work_dir: &Path, path: &str,
-        infos: &mut HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<String>)>>,
+        infos: &mut Infos,
         ignore_macros: bool, ignore_doc_commented: bool) {
     if !infos.contains_key(&None) && !infos.contains_key(&Some(path.to_owned())) {
         return;
@@ -165,7 +168,7 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
             let mut it = 0;
 
             while it < parse_result.original_content.len() &&
-                  parse_result.original_content[it].starts_with("/") {
+                  parse_result.original_content[it].starts_with('/') {
                 it += 1;
             }
             if it > 0 {
@@ -174,7 +177,7 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
             if it < parse_result.original_content.len() {
                 for line in &entry.1 {
                     if line.trim().is_empty() {
-                        parse_result.original_content.insert(it, format!("//!"));
+                        parse_result.original_content.insert(it, "//!".to_string());
                     } else {
                         parse_result.original_content.insert(it, format!("//! {}", &line));
                     }
@@ -210,44 +213,37 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                     };
 
                     if !check_if_regen(it, parse_result, ignore_doc_commented) {
-                        match get_corresponding_type(&elements, &tmp,
+                        if let Some(l) = get_corresponding_type(&elements, &tmp,
                                                      parse_result.event_list[it].line,
                                                      &mut decal,
                                                      &mut parse_result.original_content,
                                                      ignore_macros) {
-                            Some(l) => { elements.remove(l); },
-                            None => {}
+                            elements.remove(l);
                         }
                     }
-                } else {
-                    match current {
-                        Some(ref c) => {
-                            if c.ty == Type::Struct ||
-                               c.ty == Type::Enum ||
-                               c.ty == Type::Mod {
-                                let tmp = Some(t.clone());
-                                let cc = {
-                                    let t = strip::add_to_type_scope(&current, &tmp);
-                                    if ignore_macros {
-                                        erase_macro_path(t)
-                                    } else {
-                                        t
-                                    }
-                                };
+                } else if let Some(ref c) = current {
+                    if c.ty == Type::Struct ||
+                       c.ty == Type::Enum ||
+                       c.ty == Type::Mod {
+                        let tmp = Some(t.clone());
+                        let cc = {
+                            let t = strip::add_to_type_scope(&current, &tmp);
+                            if ignore_macros {
+                                erase_macro_path(t)
+                            } else {
+                                t
+                            }
+                        };
 
-                                if !check_if_regen(it, parse_result, ignore_doc_commented) {
-                                    match get_corresponding_type(&elements, &cc,
-                                                                 parse_result.event_list[it].line,
-                                                                 &mut decal,
-                                                                 &mut parse_result.original_content,
-                                                                 ignore_macros) {
-                                        Some(l) => { elements.remove(l); }
-                                        None => {}
-                                    }
-                                }
+                        if !check_if_regen(it, parse_result, ignore_doc_commented) {
+                            if let Some(l) = get_corresponding_type(&elements, &cc,
+                                                         parse_result.event_list[it].line,
+                                                         &mut decal,
+                                                         &mut parse_result.original_content,
+                                                         ignore_macros) {
+                                elements.remove(l);
                             }
                         }
-                        None => {}
                     }
                 }
             }
@@ -279,14 +275,14 @@ fn rewrite_file(path: &Path, o_content: &[String]) {
 
 fn parse_mod_line(line: &str) -> Option<TypeStruct> {
     let line = line.replace(FILE_COMMENT, "").replace(MOD_COMMENT, "").replace(END_INFO, "");
-    if line.len() < 1 {
+    if line.is_empty() {
         return None
     }
     let parts : Vec<&str> = line.split("::").collect();
     let mut current = None;
 
     for part in parts {
-        let elems : Vec<&str> = part.split(" ").filter(|x| x.len() > 0).collect();
+        let elems : Vec<&str> = part.split(' ').filter(|x| !x.is_empty()).collect();
 
         current = strip::add_to_type_scope(&current.clone(),
                                            &Some(TypeStruct::new(Type::from(elems[0]),
@@ -295,12 +291,11 @@ fn parse_mod_line(line: &str) -> Option<TypeStruct> {
     current
 }
 
-fn save_remainings(infos: &HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<String>)>>,
-                   comment_file: &str) {
+fn save_remainings(infos: &Infos, comment_file: &str) {
     let mut remainings = 0;
 
-    for (_, content) in infos {
-        if content.len() > 0 {
+    for content in infos.values() {
+        if !content.is_empty() {
             remainings += 1;
         }
     }
@@ -314,27 +309,23 @@ fn save_remainings(infos: &HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<
                       back to '{}'.",
                      comment_file);
             for (key, content) in infos {
-                if content.len() < 1 {
+                if content.is_empty() {
                     continue;
                 }
                 // Set the name to "*" for entries that ignore file name
                 let key = key.as_ref().map(|s| &s[..]).unwrap_or("*");
                 let _ = writeln!(out_file, "{}", &write_file(key));
                 for line in content {
-                    match line.0 {
-                        Some(ref d) => {
-                            let _ = writeln!(out_file,
-                                             "{}", write_comment(d, &join(&line.1, "\n"),
-                                             false));
-                        }
-                        None => {}
+                    if let Some(ref d) = line.0 {
+                        let _ = writeln!(out_file,
+                                         "{}", write_comment(d, &join(&line.1, "\n"),
+                                         false));
                     }
                 }
             }
         },
         Err(e) => {
             println!("An error occured while trying to open '{}': {}", comment_file, e);
-            return;
         },
     }
 }
@@ -389,8 +380,7 @@ fn erase_macro_path(ty: Option<TypeStruct>) -> Option<TypeStruct> {
     }
 }
 
-pub fn parse_cmts<S, I>(mut lines: I, ignore_macros: bool)
-    -> HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<String>)>>
+pub fn parse_cmts<S, I>(lines: I, ignore_macros: bool) -> Infos
 where S: Deref<Target = str>,
       I: Iterator<Item = S> {
     enum State {
@@ -406,6 +396,7 @@ where S: Deref<Target = str>,
     // Returns `Some(name)` if the line matches FILE
     // where name is Some for an actual file name and None for "*"
     // The "*" entries are to be applied regardless of file name
+    #[allow(clippy::option_option)]
     fn line_file(line: &str) -> Option<Option<String>> {
         if line.starts_with(FILE) {
             let name = &line[FILE.len()..].replace(END_INFO, "");
@@ -423,12 +414,12 @@ where S: Deref<Target = str>,
     let mut ret = HashMap::new();
     let mut state = State::Initial;
 
-    while let Some(line) = lines.next() {
+    for line in lines {
         state = match state {
             State::Initial => {
                 if let Some(file) = line_file(&line) {
                     State::File {
-                        file: file,
+                        file,
                         infos: vec![],
                         ty: None,
                         comments: vec![],
@@ -454,11 +445,9 @@ where S: Deref<Target = str>,
                             infos.push((Some(ty), comments));
                             comments = vec!["//!".to_owned()];
                         }
-                    } else {
-                        if !comments.is_empty() {
-                            infos.push((None, comments));
-                            comments = vec![];
-                        }
+                    } else if !comments.is_empty() {
+                        infos.push((None, comments));
+                        comments = vec![];
                     }
                     ty = parse_mod_line(&line[..]);
                 } else if line.starts_with(MOD_COMMENT) {

@@ -20,16 +20,16 @@ use std::ops::Deref;
 use utils::{join, write_comment, write_file, write_file_comment};
 use types::{EventInfo, EventType, ParseResult, Type, TypeStruct};
 
-const STOP_CHARACTERS : &'static [char] = &['\t', '\n', '\r', '<', '{', ':', ';', '!', '('];
-const COMMENT_ID : &'static [&'static str] = &["//", "/*"];
-const DOC_COMMENT_ID : &'static [&'static str] = &["///", "/*!", "//!"];
+const STOP_CHARACTERS : &[char] = &['\t', '\n', '\r', '<', '{', ':', ';', '!', '('];
+const COMMENT_ID : &[&str] = &["//", "/*"];
+const DOC_COMMENT_ID : &[&str] = &["///", "/*!", "//!"];
 
 fn move_to(words: &[&str], it: &mut usize, limit: &str, line: &mut usize, start_remove: &str) {
     if words[*it][start_remove.len()..].contains(&limit) {
         return;
     }
     *it += 1;
-    while *it < words.len() && words[*it].contains(limit) == false {
+    while *it < words.len() && !words[*it].contains(limit) {
         if words[*it] == "\n" {
             *line += 1;
         }
@@ -74,10 +74,10 @@ fn get_impl(words: &[&str], it: &mut usize, line: &mut usize) -> Vec<String> {
 
 pub fn add_to_type_scope(current: &Option<TypeStruct>,
                          e: &Option<TypeStruct>) -> Option<TypeStruct> {
-    match current {
-        &Some(ref c) => {
-            match e {
-                &Some(ref t) => {
+    match *current {
+        Some(ref c) => {
+            match *e {
+                Some(ref t) => {
                     let mut tmp = t.clone();
                     tmp.parent = Some(Box::new(c.clone()));
                     Some(tmp)
@@ -89,20 +89,20 @@ pub fn add_to_type_scope(current: &Option<TypeStruct>,
                 }
             }
         },
-        &None => match e {
-            &Some(ref t) => Some(t.clone()),
+        None => match *e {
+            Some(ref t) => Some(t.clone()),
             _ => None,
         }
     }
 }
 
 pub fn type_out_scope(current: &Option<TypeStruct>) -> Option<TypeStruct> {
-    match current {
-        &Some(ref c) => match c.parent {
+    match *current {
+        Some(ref c) => match c.parent {
             Some(ref p) => Some(p.deref().clone()),
             None => None,
         },
-        &None => None,
+        None => None,
     }
 }
 
@@ -140,40 +140,38 @@ fn get_three_parts<'a>(before: &'a str,
 fn find_one_of<'a>(comments: &[&str], doc_comments: &[&str], text: &'a str) -> BlockKind<'a> {
     let mut last_pos = 0;
 
-    loop {
-        let tmp_text = &text[last_pos..];
-        if let Some(pos) = tmp_text.find('/') {
-            let tmp_text = &tmp_text[pos..];
-            last_pos = pos + last_pos;
-            for com in doc_comments {
-                if tmp_text.starts_with(com) {
-                    if &com[1..2] == "*" {
-                        return BlockKind::DocComment(get_three_parts(&text[0..last_pos], com,
-                                                                     &text[last_pos + com.len()..],
-                                                                     "*/"))
-                    } else {
-                        return BlockKind::DocComment(get_three_parts(&text[0..last_pos], com,
-                                                                     &text[last_pos + com.len()..],
-                                                                     "\n"))
-                    }
-                }
-            }
-            for com in comments {
-                if tmp_text.starts_with(com) {
-                    if &com[1..2] == "*" {
-                        return BlockKind::Comment(get_three_parts(&text[0..last_pos],
-                                                                  "",
-                                                                  &text[last_pos..], "*/"))
-                    } else {
-                        return BlockKind::Comment(get_three_parts(&text[0..last_pos],
-                                                                  "",
-                                                                  &text[last_pos..], "\n"))
-                    }
+    let tmp_text = &text[last_pos..];
+    if let Some(pos) = tmp_text.find('/') {
+        let tmp_text = &tmp_text[pos..];
+        last_pos += pos;
+        for com in doc_comments {
+            if tmp_text.starts_with(com) {
+                if &com[1..2] == "*" {
+                    return BlockKind::DocComment(get_three_parts(&text[0..last_pos], com,
+                                                                 &text[last_pos + com.len()..],
+                                                                 "*/"))
+                } else {
+                    return BlockKind::DocComment(get_three_parts(&text[0..last_pos], com,
+                                                                 &text[last_pos + com.len()..],
+                                                                 "\n"))
                 }
             }
         }
-        return BlockKind::Other(text)
+        for com in comments {
+            if tmp_text.starts_with(com) {
+                if &com[1..2] == "*" {
+                    return BlockKind::Comment(get_three_parts(&text[0..last_pos],
+                                                              "",
+                                                              &text[last_pos..], "*/"))
+                } else {
+                    return BlockKind::Comment(get_three_parts(&text[0..last_pos],
+                                                              "",
+                                                              &text[last_pos..], "\n"))
+                }
+            }
+        }
     }
+    BlockKind::Other(text)
 }
 
 fn transform_code(code: &str) -> String {
@@ -195,7 +193,7 @@ fn clean_input(mut s: &str) -> String {
         s = match find_one_of(COMMENT_ID, DOC_COMMENT_ID, s) {
             BlockKind::Comment((s, comment, after)) => {
                 ret.push_str(&transform_code(&s));
-                for _ in 0..comment.split("\n").count() - 1 {
+                for _ in 0..comment.split('\n').count() - 1 {
                     ret.push_str(" \n ");
                 }
                 after
@@ -224,15 +222,13 @@ fn clear_events(mut events: Vec<EventInfo>) -> Vec<EventInfo> {
                 if t.ty != Type::Unknown {
                     waiting_type = Some(t.clone());
                     false
-                } else {
-                    if let Some(ref parent) = current {
-                        match parent.ty {
-                            Type::Struct | Type::Enum => false,
-                            _ => true,
-                        }
-                    } else {
-                        true
+                } else if let Some(ref parent) = current {
+                    match parent.ty {
+                        Type::Struct | Type::Enum => false,
+                        _ => true,
                     }
+                } else {
+                    true
                 }
             }
             EventType::InScope => {
@@ -255,6 +251,7 @@ fn clear_events(mut events: Vec<EventInfo>) -> Vec<EventInfo> {
     events
 }
 
+#[allow(clippy::useless_let_if_seq)]
 fn build_event_inner(
     it: &mut usize,
     line: &mut usize,
@@ -267,7 +264,7 @@ fn build_event_inner(
     let mut waiting_for_macro = false;
     while *it < words.len() {
         match words[*it] {
-            c if c.starts_with("\"") => move_to(&words, it, "\"", line, "\""),
+            c if c.starts_with('\"') => move_to(&words, it, "\"", line, "\""),
             c if c.starts_with("b\"") => move_to(&words, it, "\"", line, "b\""),
             // c if c.starts_with("'") => move_to(&words, it, "'", line),
             c if c.starts_with("r#") => {
@@ -285,7 +282,7 @@ fn build_event_inner(
                 event_list.push(
                     EventInfo::new(*line,
                                    EventType::FileComment(b_content[*line].to_owned())));
-                if *line + 1 < b_content.len() && b_content[*line + 1].len() < 1 {
+                if *line + 1 < b_content.len() && b_content[*line + 1].is_empty() {
                     comment_lines.push(*line + 1);
                 }
                 move_to(&words, it, "\n", line, "");
@@ -293,15 +290,15 @@ fn build_event_inner(
             "/*!" => {
                 let mark = *line;
                 move_until(&words, it, "*/", line);
-                for pos in mark..*line {
+                for (pos, s) in b_content.iter().enumerate().take(*line).skip(mark) {
                     comment_lines.push(pos);
                     event_list.push(
                         EventInfo::new(*line,
-                                       EventType::FileComment(b_content[pos].to_owned())));
+                                       EventType::FileComment(s.to_owned())));
                 }
                 comment_lines.push(*line);
                 let mut removed = false;
-                if *line + 1 < b_content.len() && b_content[*line + 1].len() < 1 {
+                if *line + 1 < b_content.len() && b_content[*line + 1].is_empty() {
                     comment_lines.push(*line + 1);
                     removed = true;
                 }
@@ -318,7 +315,7 @@ fn build_event_inner(
 
                 if *line + 1 < b_content.len() && b_content[*line].ends_with("::{") {
                     move_to(&words, it, "\n", line, "");
-                    name.push_str(&format!("{}", b_content[*line + 1].trim()));
+                    name.push_str(&b_content[*line + 1].trim());
                 }
                 event_list.push(
                     EventInfo::new(*line,
@@ -402,8 +399,8 @@ fn build_event_inner(
             }
             s if s.starts_with("#[") || s.starts_with("#![") => {
                 while *it < words.len() {
-                    *line += words[*it].split("\n").count() - 1;
-                    if words[*it].contains("]") {
+                    *line += words[*it].split('\n').count() - 1;
+                    if words[*it].contains(']') {
                         break;
                     }
                     *it += 1;
@@ -426,7 +423,7 @@ pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
     f.read_to_string(&mut b_content).unwrap();
     let content = clean_input(&b_content);
     let b_content: Vec<String> = b_content.split('\n').map(|s| s.to_owned()).collect();
-    let words: Vec<&str> = content.split(' ').filter(|s| s.len() > 0).collect();
+    let words: Vec<&str> = content.split(' ').filter(|s| !s.is_empty()).collect();
     let mut it = 0;
     let mut line = 0;
     let mut event_list = vec!();
@@ -459,7 +456,7 @@ fn unformat_comment(c: &str) -> String {
         /*for to_remove in COMMENT_ID {
             s = s.replace(to_remove, "");
         }*/
-        if s.starts_with(" ") {
+        if s.starts_with(' ') {
             (&s)[1..].to_owned()
         } else {
             s
@@ -467,8 +464,7 @@ fn unformat_comment(c: &str) -> String {
     }
 
     c.replace("*/", "")
-     .split("\n")
-     .into_iter()
+     .split('\n')
      .map(|s| remove_prepend(s.trim_start())).collect::<Vec<String>>().join("\n")
 }
 
@@ -477,7 +473,7 @@ pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
     let full_path = work_dir.join(path);
     match build_event_list(&full_path) {
         Ok(parse_result) => {
-            if parse_result.comment_lines.len() < 1 {
+            if parse_result.comment_lines.is_empty() {
                 return;
             }
             writeln!(out_file, "{}", &write_file(path)).unwrap();
@@ -502,7 +498,7 @@ pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
                     }
                     EventType::FileComment(ref c) => {
                         // first, we need to find if it belongs to a mod
-                        if get_mod(&current) == false {
+                        if !get_mod(&current) {
                             exit(1);
                         }
                         it += 1;
@@ -604,11 +600,8 @@ pub fn strip_comments<F: Write>(work_dir: &Path, path: &str, out_file: &mut F,
 fn remove_comments(path: &Path, to_remove: &[usize], mut o_content: Vec<String>) {
     match File::create(path) {
         Ok(mut f) => {
-            let mut decal = 0;
-
-            for line in to_remove {
+            for (decal, line) in to_remove.iter().enumerate() {
                 o_content.remove(line - decal);
-                decal += 1;
             }
             write!(f, "{}", o_content.join("\n")).unwrap();
         }

@@ -29,7 +29,7 @@ use types::TypeStruct;
 pub fn loop_over_files<S>(path: &Path, func: &mut dyn FnMut(&Path, &str),
     files_to_ignore: &[S], verbose: bool)
 where S: AsRef<Path> {
-    do_loop_over_files(path.as_ref(), path.as_ref(), func, files_to_ignore, verbose)
+    do_loop_over_files(path, path, func, files_to_ignore, verbose)
 }
 
 pub fn do_loop_over_files<S>(work_dir: &Path, path: &Path,
@@ -144,7 +144,7 @@ where F: FnOnce(&mut dyn Write) -> io::Result<()> {
 }
 
 pub fn write_file_comment(comment: &str, id: &Option<TypeStruct>, ignore_macro: bool) -> String {
-    if let &Some(ref t) = id {
+    if let Some(ref t) = *id {
         if ignore_macro {
             format!("{} {}{}\n{}", FILE_COMMENT, t, END_INFO, comment)
         } else {

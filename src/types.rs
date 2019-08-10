@@ -31,8 +31,8 @@ pub struct EventInfo {
 impl EventInfo {
     pub fn new(line: usize, event: EventType) -> EventInfo {
         EventInfo {
-            line: line,
-            event: event,
+            line,
+            event,
         }
     }
 }
@@ -54,12 +54,12 @@ pub enum EventType {
 
 impl Debug for EventType {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        match self {
-            &EventType::Type(ref t) => write!(fmt, "Type: {:?}", t),
-            &EventType::FileComment(ref t) => write!(fmt, "FileComment: {:?}", t),
-            &EventType::Comment(ref t) => write!(fmt, "Comment: {:?}", t),
-            &EventType::InScope => write!(fmt, "InScope"),
-            &EventType::OutScope => write!(fmt, "OutScope"),
+        match *self {
+            EventType::Type(ref t) => write!(fmt, "Type: {:?}", t),
+            EventType::FileComment(ref t) => write!(fmt, "FileComment: {:?}", t),
+            EventType::Comment(ref t) => write!(fmt, "Comment: {:?}", t),
+            EventType::InScope => write!(fmt, "InScope"),
+            EventType::OutScope => write!(fmt, "OutScope"),
         }
     }
 }
@@ -75,7 +75,7 @@ pub struct TypeStruct {
 impl TypeStruct {
     pub fn new(ty: Type, name: &str) -> TypeStruct {
         TypeStruct {
-            ty: ty,
+            ty,
             name: name.to_owned(),
             args: vec!(),
             parent: None,
@@ -102,8 +102,8 @@ impl TypeStruct {
 
     pub fn get_depth(&self, ignore_macros: bool) -> usize {
         fn recur(ty: &Option<Box<TypeStruct>>, is_parent: bool, ignore_macros: bool) -> usize {
-            match ty {
-                &Some(ref t) => {
+            match *ty {
+                Some(ref t) => {
                     if ignore_macros && is_parent && t.ty == Type::Macro {
                         recur(&t.parent, true, ignore_macros)
                     } else {
@@ -120,8 +120,8 @@ impl TypeStruct {
 impl Debug for TypeStruct {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         let parent = &self.parent;
-        match parent {
-            &Some(ref p) => write!(f, "{:?}::{} {}{}", p, self.ty, self.name, self.args.join(" ")),
+        match *parent {
+            Some(ref p) => write!(f, "{:?}::{} {}{}", p, self.ty, self.name, self.args.join(" ")),
             _ => write!(f, "{} {}{}", self.ty, self.name, self.args.join(" ")),
         }
     }
@@ -136,7 +136,7 @@ fn show(f: &mut Formatter, t: &TypeStruct, is_parent: bool) -> Result<(), Error>
 }
 
 fn sub_call(f: &mut Formatter, t: &TypeStruct, is_parent: bool) -> Result<(), Error> {
-    if (t.ty == Type::Macro || t.ty.is_macro_definition()) && is_parent == true {
+    if (t.ty == Type::Macro || t.ty.is_macro_definition()) && is_parent {
         match t.parent {
             Some(ref p) => sub_call(f, p.borrow(), true),
             _ => Ok(()),
@@ -178,8 +178,8 @@ pub enum Type {
 }
 
 impl Type {
-    pub fn is_macro_definition(&self) -> bool {
-        match *self {
+    pub fn is_macro_definition(self) -> bool {
+        match self {
             Type::MacroDefinition => true,
             _ => false,
         }
