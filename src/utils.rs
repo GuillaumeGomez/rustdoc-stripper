@@ -139,7 +139,7 @@ pub fn write_comment(id: &TypeStruct, comment: &str, ignore_macro: bool) -> Stri
 }
 pub fn write_item_doc<F>(w: &mut dyn Write, id: &TypeStruct, f: F) -> io::Result<()>
 where F: FnOnce(&mut dyn Write) -> io::Result<()> {
-    try!(writeln!(w, "{}{}{}", MOD_COMMENT, id, END_INFO));
+    writeln!(w, "{}{}{}", MOD_COMMENT, id, END_INFO)?;
     f(w)
 }
 
