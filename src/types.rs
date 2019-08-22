@@ -144,7 +144,7 @@ fn sub_call(f: &mut Formatter, t: &TypeStruct, is_parent: bool) -> Result<(), Er
     } else {
         match t.parent {
             Some(ref p) => {
-                try!(sub_call(f, p.borrow(), true));
+                sub_call(f, p.borrow(), true)?;
                 show(f, t, is_parent)
             },
             _ => show(f, t, is_parent),
