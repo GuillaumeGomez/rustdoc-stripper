@@ -12,32 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use consts::{END_INFO, FILE, FILE_COMMENT, MOD_COMMENT, OUTPUT_COMMENT_FILE};
 use std::ffi::OsStr;
 use std::fs;
 use std::io;
 use std::io::prelude::*;
 use std::path::Path;
-use consts::{
-    MOD_COMMENT,
-    FILE_COMMENT,
-    FILE,
-    END_INFO,
-    OUTPUT_COMMENT_FILE,
-};
 use types::TypeStruct;
 
-pub fn loop_over_files<S>(path: &Path, func: &mut dyn FnMut(&Path, &str),
-    files_to_ignore: &[S], verbose: bool)
-where S: AsRef<Path> {
+pub fn loop_over_files<S>(
+    path: &Path,
+    func: &mut dyn FnMut(&Path, &str),
+    files_to_ignore: &[S],
+    verbose: bool,
+) where
+    S: AsRef<Path>,
+{
     do_loop_over_files(path, path, func, files_to_ignore, verbose)
 }
 
-pub fn do_loop_over_files<S>(work_dir: &Path, path: &Path,
-    func: &mut dyn FnMut(&Path, &str), files_to_ignore: &[S], verbose: bool)
-where S: AsRef<Path> {
+pub fn do_loop_over_files<S>(
+    work_dir: &Path,
+    path: &Path,
+    func: &mut dyn FnMut(&Path, &str),
+    files_to_ignore: &[S],
+    verbose: bool,
+) where
+    S: AsRef<Path>,
+{
     match fs::read_dir(path) {
         Ok(it) => {
-            let mut entries = vec!();
+            let mut entries = vec![];
 
             for entry in it {
                 entries.push(entry.unwrap().path().to_owned());
@@ -48,14 +53,24 @@ where S: AsRef<Path> {
             }
         }
         Err(e) => {
-            println!("Error while trying to iterate over {}: {}", path.display(), e);
+            println!(
+                "Error while trying to iterate over {}: {}",
+                path.display(),
+                e
+            );
         }
     }
 }
 
-fn check_path_type<S>(work_dir: &Path, path: &Path, func: &mut dyn FnMut(&Path, &str),
-    files_to_ignore: &[S], verbose: bool)
-where S: AsRef<Path> {
+fn check_path_type<S>(
+    work_dir: &Path,
+    path: &Path,
+    func: &mut dyn FnMut(&Path, &str),
+    files_to_ignore: &[S],
+    verbose: bool,
+) where
+    S: AsRef<Path>,
+{
     match fs::metadata(path) {
         Ok(m) => {
             if m.is_dir() {
@@ -65,9 +80,9 @@ where S: AsRef<Path> {
                 do_loop_over_files(work_dir, path, func, files_to_ignore, verbose);
             } else {
                 let path_suffix = strip_prefix(path, work_dir).unwrap();
-                let ignore = path == Path::new(&format!("./{}", OUTPUT_COMMENT_FILE)) ||
-                    path.extension() != Some(OsStr::new("rs")) ||
-                    files_to_ignore.iter().any(|s| s.as_ref() == path_suffix);
+                let ignore = path == Path::new(&format!("./{}", OUTPUT_COMMENT_FILE))
+                    || path.extension() != Some(OsStr::new("rs"))
+                    || files_to_ignore.iter().any(|s| s.as_ref() == path_suffix);
                 if ignore {
                     if verbose {
                         println!("-> {}: ignored", path.display());
@@ -102,17 +117,17 @@ pub fn join(s: &[String], join_part: &str) -> String {
 
 // lifted from libstd for Path::strip_prefix is unstable
 
-fn strip_prefix<'a>(self_: &'a Path, base: &'a Path)
-                     -> Result<&'a Path, ()> {
+fn strip_prefix<'a>(self_: &'a Path, base: &'a Path) -> Result<&'a Path, ()> {
     iter_after(self_.components(), base.components())
         .map(|c| c.as_path())
         .ok_or(())
 }
 
 fn iter_after<A, I, J>(mut iter: I, mut prefix: J) -> Option<I>
-    where I: Iterator<Item = A> + Clone,
-          J: Iterator<Item = A>,
-          A: PartialEq
+where
+    I: Iterator<Item = A> + Clone,
+    J: Iterator<Item = A>,
+    A: PartialEq,
 {
     loop {
         let mut iter_next = iter.clone();
@@ -138,7 +153,9 @@ pub fn write_comment(id: &TypeStruct, comment: &str, ignore_macro: bool) -> Stri
     }
 }
 pub fn write_item_doc<F>(w: &mut dyn Write, id: &TypeStruct, f: F) -> io::Result<()>
-where F: FnOnce(&mut dyn Write) -> io::Result<()> {
+where
+    F: FnOnce(&mut dyn Write) -> io::Result<()>,
+{
     writeln!(w, "{}{}{}", MOD_COMMENT, id, END_INFO)?;
     f(w)
 }

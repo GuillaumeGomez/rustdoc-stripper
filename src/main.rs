@@ -14,15 +14,15 @@
 
 extern crate stripper_lib;
 
-use std::{env, io};
+use std::fs::File;
 use std::io::{BufRead, Write};
 use std::path::Path;
-use std::fs::File;
+use std::{env, io};
 
+use stripper_lib::loop_over_files;
 use stripper_lib::regenerate::regenerate_doc_comments;
 use stripper_lib::strip_comments;
 use stripper_lib::OUTPUT_COMMENT_FILE;
-use stripper_lib::loop_over_files;
 
 struct ExecOptions {
     stdout_output: bool,
@@ -48,7 +48,8 @@ fn check_options(args: &mut ExecOptions, to_change: char) -> bool {
 }
 
 fn print_help() {
-    println!(r#"Available options for rustdoc-stripper:
+    println!(
+        r#"Available options for rustdoc-stripper:
     -h | --help                : Displays this help
     -s | --strip               : Strips the specified folder's files and create
                                  a file with doc comments (comments.md by default)
@@ -72,7 +73,8 @@ fn print_help() {
 By default, rustdoc-stripper is run with -s option:
 ./rustdoc-stripper -s
 
-IMPORTANT: Only files ending with '.rs' will be stripped/regenerated."#);
+IMPORTANT: Only files ending with '.rs' will be stripped/regenerated."#
+    );
 }
 
 fn ask_confirmation(out_file: &str) -> bool {
@@ -82,9 +84,12 @@ fn ask_confirmation(out_file: &str) -> bool {
     let stdout = io::stdout();
     let mut stdo = stdout.lock();
 
-    print!(r##"A file '{}' already exists. If you want to run rustdoc-stripper anyway, it'll erase the file
+    print!(
+        r##"A file '{}' already exists. If you want to run rustdoc-stripper anyway, it'll erase the file
 and its data. Which means that if your files don't have rustdoc comments anymore, you'll loose them.
-Do you want to continue ? (y/n) "##, out_file);
+Do you want to continue ? (y/n) "##,
+        out_file
+    );
     let _ = stdo.flush();
 
     match reader.read_line(&mut line) {
@@ -119,7 +124,7 @@ fn main() {
     let mut first = true;
     let mut wait_filename = false;
     let mut wait_directory = false;
-    let mut files_to_ignore = vec!();
+    let mut files_to_ignore = vec![];
     let mut directory = ".".to_owned();
     let mut verbose = false;
     let mut force = false;
@@ -221,7 +226,10 @@ fn main() {
                             force = true;
                         }
                         err if err == 'i' || err == 'd' => {
-                            println!("'{}' have to be used separately from other options. Example:", err);
+                            println!(
+                                "'{}' have to be used separately from other options. Example:",
+                                err
+                            );
                             println!("./rustdoc-stripper -s -{} foo", err);
                             return;
                         }
@@ -259,7 +267,10 @@ fn main() {
                     return;
                 }
             } else {
-                println!("An element called '{}' already exists. Aborting...", &out_file);
+                println!(
+                    "An element called '{}' already exists. Aborting...",
+                    &out_file
+                );
                 return;
             }
         }
@@ -267,15 +278,21 @@ fn main() {
         if args.stdout_output {
             let stdout = io::stdout();
             let mut stdout = stdout.lock();
-            loop_over_files(directory.as_ref(), &mut move |w, s| {
-                strip_comments(w, s, &mut stdout, args.ignore_macros)
-            }, &files_to_ignore, verbose);
+            loop_over_files(
+                directory.as_ref(),
+                &mut move |w, s| strip_comments(w, s, &mut stdout, args.ignore_macros),
+                &files_to_ignore,
+                verbose,
+            );
         } else {
             match File::create(&out_file) {
                 Ok(mut f) => {
-                    loop_over_files(directory.as_ref(), &mut |w, s| {
-                        strip_comments(w, s, &mut f, args.ignore_macros)
-                    }, &files_to_ignore, verbose);
+                    loop_over_files(
+                        directory.as_ref(),
+                        &mut |w, s| strip_comments(w, s, &mut f, args.ignore_macros),
+                        &files_to_ignore,
+                        verbose,
+                    );
                 }
                 Err(e) => {
                     println!("Error while opening \"{}\": {}", &out_file, e);
@@ -285,8 +302,13 @@ fn main() {
         }
     } else {
         println!("Starting regeneration...");
-        regenerate_doc_comments(&directory, verbose, &out_file, args.ignore_macros,
-                                args.ignore_doc_commented);
+        regenerate_doc_comments(
+            &directory,
+            verbose,
+            &out_file,
+            args.ignore_macros,
+            args.ignore_doc_commented,
+        );
     }
     println!("Done !");
 }

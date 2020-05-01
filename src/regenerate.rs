@@ -12,26 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs::{File, OpenOptions, remove_file};
-use std::io::{BufRead, BufReader, Write};
+use consts::{END_INFO, FILE, FILE_COMMENT, MOD_COMMENT};
 use std::collections::HashMap;
+use std::fs::{remove_file, File, OpenOptions};
+use std::io::{BufRead, BufReader, Write};
+use std::iter;
 use std::ops::Deref;
 use std::path::Path;
 use strip;
 use types::{EventType, ParseResult, Type, TypeStruct};
 use utils::{join, loop_over_files, write_comment, write_file};
-use std::iter;
-use consts::{
-    MOD_COMMENT,
-    FILE_COMMENT,
-    FILE,
-    END_INFO,
-};
 
 type Infos = HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<String>)>>;
 
 fn gen_indent(indent: usize) -> String {
-    iter::repeat("    ").take(indent).collect::<Vec<&str>>().join("")
+    iter::repeat("    ")
+        .take(indent)
+        .collect::<Vec<&str>>()
+        .join("")
 }
 
 fn gen_indent_from(from: &str) -> String {
@@ -43,8 +41,13 @@ fn gen_indent_from(from: &str) -> String {
     String::new()
 }
 
-fn regenerate_comment(is_file_comment: bool, position: usize, indent: usize, comment: &str,
-                      original_content: &mut Vec<String>) {
+fn regenerate_comment(
+    is_file_comment: bool,
+    position: usize,
+    indent: usize,
+    comment: &str,
+    original_content: &mut Vec<String>,
+) {
     let is_empty = comment.trim().is_empty();
     let read_indent = if is_file_comment {
         gen_indent(indent)
@@ -52,21 +55,27 @@ fn regenerate_comment(is_file_comment: bool, position: usize, indent: usize, com
         let tmp = original_content[position].clone();
         gen_indent_from(&tmp)
     };
-    original_content.insert(position,
-                            format!("{}{}{}{}",
-                                    &read_indent,
-                                    if is_file_comment { "//!" } else { "///" },
-                                    if is_empty { "" } else { " " },
-                                    if is_empty { "" } else { &comment }));
+    original_content.insert(
+        position,
+        format!(
+            "{}{}{}{}",
+            &read_indent,
+            if is_file_comment { "//!" } else { "///" },
+            if is_empty { "" } else { " " },
+            if is_empty { "" } else { &comment }
+        ),
+    );
 }
 
 #[allow(clippy::useless_let_if_seq)]
-fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
-                          to_find: &Option<TypeStruct>,
-                          mut line: usize,
-                          decal: &mut usize,
-                          original_content: &mut Vec<String>,
-                          ignore_macros: bool) -> Option<usize> {
+fn get_corresponding_type(
+    elements: &[(Option<TypeStruct>, Vec<String>)],
+    to_find: &Option<TypeStruct>,
+    mut line: usize,
+    decal: &mut usize,
+    original_content: &mut Vec<String>,
+    ignore_macros: bool,
+) -> Option<usize> {
     let mut pos = 0;
 
     while pos < elements.len() {
@@ -75,8 +84,12 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                 let ret = a == b;
 
                 // to detect variants
-                if !ret && b.ty == Type::Unknown && b.parent.is_some() && a.parent.is_some() &&
-                   a.parent == b.parent {
+                if !ret
+                    && b.ty == Type::Unknown
+                    && b.parent.is_some()
+                    && a.parent.is_some()
+                    && a.parent == b.parent
+                {
                     if match b.parent {
                         Some(ref p) => {
                             p.ty == Type::Struct || p.ty == Type::Enum || p.ty == Type::Use
@@ -92,7 +105,7 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                 } else {
                     ret
                 }
-            },
+            }
             _ => false,
         } {
             let mut file_comment = false;
@@ -101,19 +114,31 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
                 line += 1;
                 file_comment = true;
             } else {
-                while line > 0 && (line + *decal) > 0 &&
-                      original_content[line + *decal - 1].trim_start().starts_with('#') {
+                while line > 0
+                    && (line + *decal) > 0
+                    && original_content[line + *decal - 1]
+                        .trim_start()
+                        .starts_with('#')
+                {
                     line -= 1;
                 }
             }
-            for comment in (&elements[pos].1).iter().skip(if file_comment { 1 } else { 0 }) {
+            for comment in (&elements[pos].1)
+                .iter()
+                .skip(if file_comment { 1 } else { 0 })
+            {
                 let depth = if let Some(ref e) = elements[pos].0 {
                     e.get_depth(ignore_macros)
                 } else {
                     0
                 };
-                regenerate_comment(file_comment, line + *decal, depth + 1, &comment,
-                                   original_content);
+                regenerate_comment(
+                    file_comment,
+                    line + *decal,
+                    depth + 1,
+                    &comment,
+                    original_content,
+                );
                 *decal += 1;
             }
             return Some(pos);
@@ -124,9 +149,13 @@ fn get_corresponding_type(elements: &[(Option<TypeStruct>, Vec<String>)],
 }
 
 // The hashmap key is `Some(file name)` or `None` for entries that ignore file name
-pub fn regenerate_comments(work_dir: &Path, path: &str,
-        infos: &mut Infos,
-        ignore_macros: bool, ignore_doc_commented: bool) {
+pub fn regenerate_comments(
+    work_dir: &Path,
+    path: &str,
+    infos: &mut Infos,
+    ignore_macros: bool,
+    ignore_doc_commented: bool,
+) {
     if !infos.contains_key(&None) && !infos.contains_key(&Some(path.to_owned())) {
         return;
     }
@@ -135,11 +164,23 @@ pub fn regenerate_comments(work_dir: &Path, path: &str,
         Ok(ref mut parse_result) => {
             // exact path match
             if let Some(v) = infos.get_mut(&Some(path.to_owned())) {
-                do_regenerate(&full_path, parse_result, v, ignore_macros, ignore_doc_commented);
+                do_regenerate(
+                    &full_path,
+                    parse_result,
+                    v,
+                    ignore_macros,
+                    ignore_doc_commented,
+                );
             }
             // apply to all files
             if let Some(v) = infos.get_mut(&None) {
-                do_regenerate(&full_path, parse_result, v, ignore_macros, ignore_doc_commented);
+                do_regenerate(
+                    &full_path,
+                    parse_result,
+                    v,
+                    ignore_macros,
+                    ignore_doc_commented,
+                );
             }
         }
         Err(e) => {
@@ -149,16 +190,21 @@ pub fn regenerate_comments(work_dir: &Path, path: &str,
 }
 
 fn check_if_regen(it: usize, parse_result: &ParseResult, ignore_doc_commented: bool) -> bool {
-    ignore_doc_commented && it > 0 &&
-    match parse_result.event_list[it - 1].event {
-        EventType::Comment(_) | EventType::FileComment(_) => true,
-        _ => false,
-    }
+    ignore_doc_commented
+        && it > 0
+        && match parse_result.event_list[it - 1].event {
+            EventType::Comment(_) | EventType::FileComment(_) => true,
+            _ => false,
+        }
 }
 
-fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
-                 elements: &mut Vec<(Option<TypeStruct>, Vec<String>)>,
-                 ignore_macros: bool, ignore_doc_commented: bool) {
+fn do_regenerate(
+    path: &Path,
+    parse_result: &mut ParseResult,
+    elements: &mut Vec<(Option<TypeStruct>, Vec<String>)>,
+    ignore_macros: bool,
+    ignore_doc_commented: bool,
+) {
     let mut position = 0;
     let mut decal = 0;
 
@@ -167,8 +213,9 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
         if entry.0.is_none() {
             let mut it = 0;
 
-            while it < parse_result.original_content.len() &&
-                  parse_result.original_content[it].starts_with('/') {
+            while it < parse_result.original_content.len()
+                && parse_result.original_content[it].starts_with('/')
+            {
                 it += 1;
             }
             if it > 0 {
@@ -179,7 +226,9 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                     if line.trim().is_empty() {
                         parse_result.original_content.insert(it, "//!".to_string());
                     } else {
-                        parse_result.original_content.insert(it, format!("//! {}", &line));
+                        parse_result
+                            .original_content
+                            .insert(it, format!("//! {}", &line));
                     }
                     decal += 1;
                     it += 1;
@@ -213,18 +262,19 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                     };
 
                     if !check_if_regen(it, parse_result, ignore_doc_commented) {
-                        if let Some(l) = get_corresponding_type(&elements, &tmp,
-                                                     parse_result.event_list[it].line,
-                                                     &mut decal,
-                                                     &mut parse_result.original_content,
-                                                     ignore_macros) {
+                        if let Some(l) = get_corresponding_type(
+                            &elements,
+                            &tmp,
+                            parse_result.event_list[it].line,
+                            &mut decal,
+                            &mut parse_result.original_content,
+                            ignore_macros,
+                        ) {
                             elements.remove(l);
                         }
                     }
                 } else if let Some(ref c) = current {
-                    if c.ty == Type::Struct ||
-                       c.ty == Type::Enum ||
-                       c.ty == Type::Mod {
+                    if c.ty == Type::Struct || c.ty == Type::Enum || c.ty == Type::Mod {
                         let tmp = Some(t.clone());
                         let cc = {
                             let t = strip::add_to_type_scope(&current, &tmp);
@@ -236,11 +286,14 @@ fn do_regenerate(path: &Path, parse_result: &mut ParseResult,
                         };
 
                         if !check_if_regen(it, parse_result, ignore_doc_commented) {
-                            if let Some(l) = get_corresponding_type(&elements, &cc,
-                                                         parse_result.event_list[it].line,
-                                                         &mut decal,
-                                                         &mut parse_result.original_content,
-                                                         ignore_macros) {
+                            if let Some(l) = get_corresponding_type(
+                                &elements,
+                                &cc,
+                                parse_result.event_list[it].line,
+                                &mut decal,
+                                &mut parse_result.original_content,
+                                ignore_macros,
+                            ) {
                                 elements.remove(l);
                             }
                         }
@@ -274,19 +327,26 @@ fn rewrite_file(path: &Path, o_content: &[String]) {
 }
 
 fn parse_mod_line(line: &str) -> Option<TypeStruct> {
-    let line = line.replace(FILE_COMMENT, "").replace(MOD_COMMENT, "").replace(END_INFO, "");
+    let line = line
+        .replace(FILE_COMMENT, "")
+        .replace(MOD_COMMENT, "")
+        .replace(END_INFO, "");
     if line.is_empty() {
-        return None
+        return None;
     }
-    let parts : Vec<&str> = line.split("::").collect();
+    let parts: Vec<&str> = line.split("::").collect();
     let mut current = None;
 
     for part in parts {
-        let elems : Vec<&str> = part.split(' ').filter(|x| !x.is_empty()).collect();
+        let elems: Vec<&str> = part.split(' ').filter(|x| !x.is_empty()).collect();
 
-        current = strip::add_to_type_scope(&current.clone(),
-                                           &Some(TypeStruct::new(Type::from(elems[0]),
-                                                                 elems[elems.len() - 1])));
+        current = strip::add_to_type_scope(
+            &current.clone(),
+            &Some(TypeStruct::new(
+                Type::from(elems[0]),
+                elems[elems.len() - 1],
+            )),
+        );
     }
     current
 }
@@ -305,9 +365,11 @@ fn save_remainings(infos: &Infos, comment_file: &str) {
     }
     match File::create(comment_file) {
         Ok(mut out_file) => {
-            println!("Some comments haven't been regenerated to the files. Saving them \
+            println!(
+                "Some comments haven't been regenerated to the files. Saving them \
                       back to '{}'.",
-                     comment_file);
+                comment_file
+            );
             for (key, content) in infos {
                 if content.is_empty() {
                     continue;
@@ -317,38 +379,53 @@ fn save_remainings(infos: &Infos, comment_file: &str) {
                 let _ = writeln!(out_file, "{}", &write_file(key));
                 for line in content {
                     if let Some(ref d) = line.0 {
-                        let _ = writeln!(out_file,
-                                         "{}", write_comment(d, &join(&line.1, "\n"),
-                                         false));
+                        let _ = writeln!(
+                            out_file,
+                            "{}",
+                            write_comment(d, &join(&line.1, "\n"), false)
+                        );
                     }
                 }
             }
-        },
+        }
         Err(e) => {
-            println!("An error occured while trying to open '{}': {}", comment_file, e);
-        },
+            println!(
+                "An error occured while trying to open '{}': {}",
+                comment_file, e
+            );
+        }
     }
 }
 
-pub fn regenerate_doc_comments(directory: &str, verbose: bool, comment_file: &str,
-                               ignore_macros: bool,
-                               ignore_doc_commented: bool) {
+pub fn regenerate_doc_comments(
+    directory: &str,
+    verbose: bool,
+    comment_file: &str,
+    ignore_macros: bool,
+    ignore_doc_commented: bool,
+) {
     // we start by storing files info
     let f = match OpenOptions::new().read(true).open(comment_file) {
         Ok(f) => f,
         Err(e) => {
-            println!("An error occured while trying to open '{}': {}", comment_file, e);
+            println!(
+                "An error occured while trying to open '{}': {}",
+                comment_file, e
+            );
             return;
-        },
+        }
     };
     let reader = BufReader::new(f);
     let lines = reader.lines().map(|line| line.unwrap());
     let mut infos = parse_cmts(lines, ignore_macros);
     let ignores: &[&str] = &[];
 
-    loop_over_files(directory.as_ref(), &mut |w, s| {
-        regenerate_comments(w, s, &mut infos, ignore_macros, ignore_doc_commented)
-    }, &ignores, verbose);
+    loop_over_files(
+        directory.as_ref(),
+        &mut |w, s| regenerate_comments(w, s, &mut infos, ignore_macros, ignore_doc_commented),
+        &ignores,
+        verbose,
+    );
     save_remainings(&infos, comment_file);
 }
 
@@ -381,8 +458,10 @@ fn erase_macro_path(ty: Option<TypeStruct>) -> Option<TypeStruct> {
 }
 
 pub fn parse_cmts<S, I>(lines: I, ignore_macros: bool) -> Infos
-where S: Deref<Target = str>,
-      I: Iterator<Item = S> {
+where
+    S: Deref<Target = str>,
+    I: Iterator<Item = S>,
+{
     enum State {
         Initial,
         File {
@@ -390,7 +469,7 @@ where S: Deref<Target = str>,
             infos: Vec<(Option<TypeStruct>, Vec<String>)>,
             ty: Option<TypeStruct>,
             comments: Vec<String>,
-        }
+        },
     }
 
     // Returns `Some(name)` if the line matches FILE
@@ -402,8 +481,7 @@ where S: Deref<Target = str>,
             let name = &line[FILE.len()..].replace(END_INFO, "");
             if name == "*" {
                 Some(None)
-            }
-            else {
+            } else {
                 Some(Some(name.to_owned()))
             }
         } else {
@@ -427,8 +505,13 @@ where S: Deref<Target = str>,
                 } else {
                     panic!("Unrecognized format");
                 }
-            },
-            State::File { mut file, mut infos, mut ty, mut comments } => {
+            }
+            State::File {
+                mut file,
+                mut infos,
+                mut ty,
+                mut comments,
+            } => {
                 if let Some(new_file) = line_file(&line) {
                     if !comments.is_empty() {
                         infos.push((ty.take(), comments));
@@ -462,14 +545,24 @@ where S: Deref<Target = str>,
                 State::File {
                     file,
                     infos,
-                    ty: if ignore_macros { erase_macro_path(ty) } else { ty },
+                    ty: if ignore_macros {
+                        erase_macro_path(ty)
+                    } else {
+                        ty
+                    },
                     comments,
                 }
-            },
+            }
         }
     }
 
-    if let State::File { file, mut infos, ty, comments } = state {
+    if let State::File {
+        file,
+        mut infos,
+        ty,
+        comments,
+    } = state
+    {
         if !comments.is_empty() {
             infos.push((ty, comments));
         }
