@@ -143,7 +143,7 @@ fn get_three_parts<'a>(
 fn check_if_should_be_ignored(text: &str) -> bool {
     if let Some(end_pos) = text.rfind('\n') {
         if let Some(start_pos) = text[..end_pos].rfind('\n') {
-            return text[start_pos..end_pos].trim_left().starts_with(IGNORE_NEXT_COMMENT)
+            return text[start_pos..end_pos].trim_start().starts_with(IGNORE_NEXT_COMMENT)
         }
     }
     false
