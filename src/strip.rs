@@ -23,6 +23,7 @@ use types::{EventInfo, EventType, ParseResult, Type, TypeStruct};
 const STOP_CHARACTERS : &[char] = &['\t', '\n', '\r', '<', '{', ':', ';', '!', '('];
 const COMMENT_ID : &[&str] = &["//", "/*"];
 const DOC_COMMENT_ID : &[&str] = &["///", "/*!", "//!"];
+const IGNORE_NEXT_COMMENT: &str = "// rustdoc-stripper-ignore-next";
 
 fn move_to(words: &[&str], it: &mut usize, limit: &str, line: &mut usize, start_remove: &str) {
     if words[*it][start_remove.len()..].contains(&limit) {
@@ -126,15 +127,26 @@ enum BlockKind<'a> {
     Other(&'a str),
 }
 
-fn get_three_parts<'a>(before: &'a str,
-                       comment_sign: &str,
-                       after: &'a str,
-                       stop: &str) -> (String, String, &'a str) {
+fn get_three_parts<'a>(
+    before: &'a str,
+    comment_sign: &str,
+    after: &'a str,
+    stop: &str,
+) -> (String, String, &'a str) {
     if let Some(pos) = after.find(stop) {
         (before.to_owned(), format!("{} {}", comment_sign, &after[0..pos]), &after[pos..])
     } else {
         (before.to_owned(), format!("{} {}", comment_sign, &after), &after[after.len() - 1..])
     }
+}
+
+fn check_if_should_be_ignored(text: &str) -> bool {
+    if let Some(end_pos) = text.rfind('\n') {
+        if let Some(start_pos) = text[..end_pos].rfind('\n') {
+            return text[start_pos..end_pos].trim_start().starts_with(IGNORE_NEXT_COMMENT)
+        }
+    }
+    false
 }
 
 fn find_one_of<'a>(comments: &[&str], doc_comments: &[&str], text: &'a str) -> BlockKind<'a> {
@@ -147,26 +159,42 @@ fn find_one_of<'a>(comments: &[&str], doc_comments: &[&str], text: &'a str) -> B
         for com in doc_comments {
             if tmp_text.starts_with(com) {
                 if &com[1..2] == "*" {
-                    return BlockKind::DocComment(get_three_parts(&text[0..last_pos], com,
-                                                                 &text[last_pos + com.len()..],
-                                                                 "*/"))
+                    return BlockKind::DocComment(
+                        get_three_parts(
+                            &text[0..last_pos],
+                            com,
+                            &text[last_pos + com.len()..],
+                            "*/",
+                        ))
                 } else {
-                    return BlockKind::DocComment(get_three_parts(&text[0..last_pos], com,
-                                                                 &text[last_pos + com.len()..],
-                                                                 "\n"))
+                    return BlockKind::DocComment(
+                        get_three_parts(
+                            &text[0..last_pos],
+                            com,
+                            &text[last_pos + com.len()..],
+                            "\n",
+                        ))
                 }
             }
         }
         for com in comments {
             if tmp_text.starts_with(com) {
                 if &com[1..2] == "*" {
-                    return BlockKind::Comment(get_three_parts(&text[0..last_pos],
-                                                              "",
-                                                              &text[last_pos..], "*/"))
+                    return BlockKind::Comment(
+                        get_three_parts(
+                            &text[0..last_pos],
+                            "",
+                            &text[last_pos..],
+                            "*/",
+                        ))
                 } else {
-                    return BlockKind::Comment(get_three_parts(&text[0..last_pos],
-                                                              "",
-                                                              &text[last_pos..], "\n"))
+                    return BlockKind::Comment(
+                        get_three_parts(
+                            &text[0..last_pos],
+                            "",
+                            &text[last_pos..],
+                            "\n",
+                        ))
                 }
             }
         }
@@ -187,28 +215,32 @@ fn transform_code(code: &str) -> String {
         .replace("(", " (")
 }
 
-fn clean_input(mut s: &str) -> String {
+fn clean_input(s: &str) -> String {
     let mut ret = String::new();
+    let mut text = s;
     loop {
-        s = match find_one_of(COMMENT_ID, DOC_COMMENT_ID, s) {
-            BlockKind::Comment((s, comment, after)) => {
-                ret.push_str(&transform_code(&s));
+        text = match find_one_of(COMMENT_ID, DOC_COMMENT_ID, text) {
+            BlockKind::Other(content) => {
+                ret.push_str(&transform_code(content));
+                break;
+            }
+            BlockKind::DocComment((before, doc_comment, after))
+            if !check_if_should_be_ignored(&s[..s.len() - after.len()]) => {
+                ret.push_str(&transform_code(&before));
+                ret.push_str(&doc_comment);
+                after
+            }
+            BlockKind::Comment((before, comment, after))
+            | BlockKind::DocComment((before, comment, after)) => {
+                ret.push_str(&transform_code(&before));
                 for _ in 0..comment.split('\n').count() - 1 {
                     ret.push_str(" \n ");
                 }
                 after
             }
-            BlockKind::DocComment((s, doc_comment, after)) => {
-                ret.push_str(&transform_code(&s));
-                ret.push_str(&doc_comment);
-                after
-            }
-            BlockKind::Other(s) => {
-                ret.push_str(&transform_code(s));
-                return ret
-            }
         };
     }
+    ret
 }
 
 fn clear_events(mut events: Vec<EventInfo>) -> Vec<EventInfo> {

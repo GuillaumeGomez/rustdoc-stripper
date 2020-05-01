@@ -25,3 +25,15 @@ By default, rustdoc is run with -s option:
 ```
 
 IMPORTANT: Only files ending with '.rs' will be stripped/regenerated.
+
+## Ignore doc-comment
+
+You can prevent a doc comment to be stripped by prepending it by `// rustdoc-stripper-ignore-next`.
+
+Example:
+
+```rust
+// rustdoc-stripper-ignore-next
+/// existing comment
+pub unsafe fn new() -> Foo {}
+```

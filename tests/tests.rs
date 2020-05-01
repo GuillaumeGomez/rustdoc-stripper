@@ -1115,3 +1115,32 @@ fn test11_regeneration() {
                                           true, false);
     compare_files(BASIC11, &temp_dir.path().join(test_file));
 }
+
+const BASIC12 : &str = r#"impl Foo {
+    // rustdoc-stripper-ignore-next
+    /// existing comment
+    pub unsafe fn new() -> Foo {}
+}
+"#;
+
+fn get_basic12_md(file: &str) -> String {
+    String::new()
+}
+
+// test if ignore_doc_commented option is working
+#[allow(unused_must_use)]
+#[test]
+fn test12_strip() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC12);
+    {
+        let mut f = gen_file(&temp_dir, comment_file, "");
+        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
+    }
+    println!("Testing markdown");
+    compare_files(&get_basic12_md(test_file), &temp_dir.path().join(comment_file));
+    println!("Testing stripped file");
+    compare_files(BASIC12, &temp_dir.path().join(test_file));
+}
