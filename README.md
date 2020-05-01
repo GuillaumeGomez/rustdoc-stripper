@@ -3,7 +3,7 @@
 `rustdoc-stripper` is a tool used to remove rustdoc comments from your code and save them in a
 `comments.cmts` file if you want to regenerate them.
 
-###Options
+### Options
 
 Available options for rustdoc-stripper are:
 
