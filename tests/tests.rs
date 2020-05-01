@@ -18,9 +18,9 @@ extern crate tempfile;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
-use tempfile::{TempDir, tempdir};
+use tempfile::{tempdir, TempDir};
 
-const BASIC : &str = r#"//! File comment
+const BASIC: &str = r#"//! File comment
 //! three
 //! lines
 
@@ -72,7 +72,8 @@ mod Bar {
 "#;
 
 fn get_basic_md(file: &str) -> String {
-    format!(r#"<!-- file {} -->
+    format!(
+        r#"<!-- file {} -->
 <!-- file_comment -->
 File comment
 three
@@ -92,7 +93,9 @@ and another one!
 <!-- file_comment mod Bar::mod SubBar -->
 an empty mod
 yeay
-"#, file)
+"#,
+        file
+    )
 }
 
 fn gen_file(temp_dir: &TempDir, filename: &str, content: &str) -> File {
@@ -124,7 +127,10 @@ fn test_strip() {
         let mut f = gen_file(&temp_dir, comment_file, "");
         stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
     }
-    compare_files(&get_basic_md(test_file), &temp_dir.path().join(comment_file));
+    compare_files(
+        &get_basic_md(test_file),
+        &temp_dir.path().join(comment_file),
+    );
     compare_files(BASIC_STRIPPED, &temp_dir.path().join(test_file));
 }
 
@@ -136,12 +142,15 @@ fn test_regeneration() {
     let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC_STRIPPED);
     gen_file(&temp_dir, comment_file, &get_basic_md(test_file));
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false, false);
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        false,
+        false,
+    );
     compare_files(BASIC, &temp_dir.path().join(test_file));
 }
-
 
 const BASIC2: &str = r#"
 use Bin;
@@ -213,7 +222,7 @@ pub trait DialogExt {
 }
 "#;
 
-const BASIC2_STRIPPED : &str = r#"
+const BASIC2_STRIPPED: &str = r#"
 use Bin;
 use Box;
 use Buildable;
@@ -254,7 +263,8 @@ pub trait DialogExt {
 "#;
 
 fn get_basic2_md(file: &str) -> String {
-    format!(r#"<!-- file {} -->
+    format!(
+        r#"<!-- file {} -->
 <!-- struct Dialog -->
 Dialog boxes are a convenient way to prompt the user for a small amount
 of input, e.g. to display a message, ask a question, or anything else
@@ -290,7 +300,9 @@ non-activatable widget, simply pack it into the `action_area` field
 of the `Dialog` struct.
 <!-- trait DialogExt::fn add_button -->
 Adds a button with the given text
-"#, file)
+"#,
+        file
+    )
 }
 
 const BASIC2_MD: &str = r#"<!-- file * -->
@@ -346,7 +358,10 @@ fn test2_strip() {
         let mut f = gen_file(&temp_dir, comment_file, "");
         stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, true);
     }
-    compare_files(&get_basic2_md(test_file), &temp_dir.path().join(comment_file));
+    compare_files(
+        &get_basic2_md(test_file),
+        &temp_dir.path().join(comment_file),
+    );
     compare_files(BASIC2_STRIPPED, &temp_dir.path().join(test_file));
 }
 
@@ -358,28 +373,35 @@ fn test2_regeneration() {
     let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC2_STRIPPED);
     gen_file(&temp_dir, comment_file, BASIC2_MD);
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          true, false);
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        true,
+        false,
+    );
     compare_files(BASIC2, &temp_dir.path().join(test_file));
 }
 
-const BASIC3 : &str = r#"///struct Foo comment
+const BASIC3: &str = r#"///struct Foo comment
 struct Foo;
 "#;
 
-const BASIC3_STRIPPED : &str = r#"struct Foo;
+const BASIC3_STRIPPED: &str = r#"struct Foo;
 "#;
 
-const BASIC3_REGEN : &str = r#"/// struct Foo comment
+const BASIC3_REGEN: &str = r#"/// struct Foo comment
 struct Foo;
 "#;
 
 fn get_basic3_md(file: &str) -> String {
-    format!(r#"<!-- file {} -->
+    format!(
+        r#"<!-- file {} -->
 <!-- struct Foo -->
 struct Foo comment
-"#, file)
+"#,
+        file
+    )
 }
 
 #[allow(unused_must_use)]
@@ -393,7 +415,10 @@ fn test3_strip() {
         let mut f = gen_file(&temp_dir, comment_file, "");
         stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
     }
-    compare_files(&get_basic3_md(test_file), &temp_dir.path().join(comment_file));
+    compare_files(
+        &get_basic3_md(test_file),
+        &temp_dir.path().join(comment_file),
+    );
     compare_files(BASIC3_STRIPPED, &temp_dir.path().join(test_file));
 }
 
@@ -405,13 +430,17 @@ fn test3_regeneration() {
     let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC3_STRIPPED);
     gen_file(&temp_dir, comment_file, &get_basic3_md(test_file));
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false, false);
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        false,
+        false,
+    );
     compare_files(BASIC3_REGEN, &temp_dir.path().join(test_file));
 }
 
-const BASIC4 : &str = r#"// Copyright 2013-2015, The Gtk-rs Project Developers.
+const BASIC4: &str = r#"// Copyright 2013-2015, The Gtk-rs Project Developers.
 // See the COPYRIGHT file at the top-level directory of this distribution.
 // Licensed under the MIT license, see the LICENSE file or <http://opensource.org/licenses/MIT>
 
@@ -478,13 +507,17 @@ fn test4_regeneration() {
     let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC4);
     gen_file(&temp_dir, comment_file, &get_basic4_md());
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false, false);
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        false,
+        false,
+    );
     compare_files(BASIC4, &temp_dir.path().join(test_file));
 }
 
-const BASIC5 : &str = r#"/// Here is a flags!
+const BASIC5: &str = r#"/// Here is a flags!
 pub flags SomeFlags : u32 {
     /// a const
     const VISIBLE = 1,
@@ -493,21 +526,24 @@ pub flags SomeFlags : u32 {
 }
 "#;
 
-const BASIC5_STRIPPED : &str = r#"pub flags SomeFlags : u32 {
+const BASIC5_STRIPPED: &str = r#"pub flags SomeFlags : u32 {
     const VISIBLE = 1,
     const HIDDEN = 2,
 }
 "#;
 
 fn get_basic5_md(file: &str) -> String {
-    format!(r#"<!-- file {} -->
+    format!(
+        r#"<!-- file {} -->
 <!-- flags SomeFlags -->
 Here is a flags!
 <!-- flags SomeFlags::const VISIBLE -->
 a const
 <!-- flags SomeFlags::const HIDDEN -->
 another
-"#, file)
+"#,
+        file
+    )
 }
 
 #[allow(unused_must_use)]
@@ -521,7 +557,10 @@ fn test5_strip() {
         let mut f = gen_file(&temp_dir, comment_file, "");
         stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
     }
-    compare_files(&get_basic5_md(test_file), &temp_dir.path().join(comment_file));
+    compare_files(
+        &get_basic5_md(test_file),
+        &temp_dir.path().join(comment_file),
+    );
     compare_files(BASIC5_STRIPPED, &temp_dir.path().join(test_file));
 }
 
@@ -533,13 +572,17 @@ fn test5_regeneration() {
     let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC5_STRIPPED);
     gen_file(&temp_dir, comment_file, &get_basic5_md(test_file));
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false, false);
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        false,
+        false,
+    );
     compare_files(BASIC5, &temp_dir.path().join(test_file));
 }
 
-const BASIC6 : &str = r#"/// not stripped comment
+const BASIC6: &str = r#"/// not stripped comment
 struct Foo;
 
 impl Foo {
@@ -550,7 +593,7 @@ impl Foo {
 struct Bar;
 "#;
 
-const BASIC6_REGEN : &str = r#"/// not stripped comment
+const BASIC6_REGEN: &str = r#"/// not stripped comment
 struct Foo;
 
 impl Foo {
@@ -563,14 +606,17 @@ struct Bar;
 "#;
 
 fn get_basic6_md(file: &str) -> String {
-    format!(r#"<!-- file {} -->
+    format!(
+        r#"<!-- file {} -->
 <!-- struct Foo -->
 struct Foo comment
 <!-- impl Foo::fn new -->
 fn new comment
 <!-- struct Bar -->
 struct Bar comment
-"#, file)
+"#,
+        file
+    )
 }
 
 // test if ignore_doc_commented option is working
@@ -582,23 +628,30 @@ fn test6_regeneration() {
     let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC6);
     gen_file(&temp_dir, comment_file, &get_basic6_md(test_file));
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false, true);
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        false,
+        true,
+    );
     compare_files(BASIC6_REGEN, &temp_dir.path().join(test_file));
 }
 
-const BASIC7 : &str = r#"impl Foo {
+const BASIC7: &str = r#"impl Foo {
     /// existing comment
     pub unsafe fn new() -> Foo {}
 }
 "#;
 
 fn get_basic7_md(file: &str) -> String {
-    format!(r#"<!-- file {} -->
+    format!(
+        r#"<!-- file {} -->
 <!-- impl Foo::fn new -->
 bad comment
-"#, file)
+"#,
+        file
+    )
 }
 
 // test if ignore_doc_commented option is working
@@ -610,9 +663,13 @@ fn test7_regeneration() {
     let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC7);
     gen_file(&temp_dir, comment_file, &get_basic7_md(test_file));
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false, true);
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        false,
+        true,
+    );
     compare_files(BASIC7, &temp_dir.path().join(test_file));
 }
 
@@ -633,7 +690,7 @@ macro_rules! some_macro {
 }
 "#;
 
-const BASIC8_STRIPPED : &str = r#"macro_rules! some_macro {
+const BASIC8_STRIPPED: &str = r#"macro_rules! some_macro {
     ($constructor_ffi: ident) => {
         /// Takes full ownership of the output stream,
         /// which is not allowed to borrow any lifetime shorter than `'static`.
@@ -663,7 +720,10 @@ fn test8_strip() {
         let mut f = gen_file(&temp_dir, comment_file, "");
         stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
     }
-    compare_files(&get_basic8_md(test_file), &temp_dir.path().join(comment_file));
+    compare_files(
+        &get_basic8_md(test_file),
+        &temp_dir.path().join(comment_file),
+    );
     compare_files(BASIC8_STRIPPED, &temp_dir.path().join(test_file));
 }
 
@@ -675,9 +735,13 @@ fn test8_regeneration() {
     let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC8);
     gen_file(&temp_dir, comment_file, &get_basic8_md(test_file));
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false, true);
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        false,
+        true,
+    );
     compare_files(BASIC8, &temp_dir.path().join(test_file));
 }
 
@@ -693,10 +757,13 @@ const BASIC9_STRIPPED: &str = r#"trait SettingsBackendExt: 'static {
 "#;
 
 fn get_basic9_md(file: &str) -> String {
-    format!(r#"<!-- file {} -->
+    format!(
+        r#"<!-- file {} -->
 <!-- trait SettingsBackendExt::fn path_writable_changed -->
 Signals that the writability of all keys below a given path.
-"#, file)
+"#,
+        file
+    )
 }
 
 #[allow(unused_must_use)]
@@ -711,7 +778,10 @@ fn test9_strip() {
         stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
     }
     println!("Testing markdown");
-    compare_files(&get_basic9_md(test_file), &temp_dir.path().join(comment_file));
+    compare_files(
+        &get_basic9_md(test_file),
+        &temp_dir.path().join(comment_file),
+    );
     println!("Testing stripped file");
     compare_files(BASIC9_STRIPPED, &temp_dir.path().join(test_file));
 }
@@ -724,9 +794,13 @@ fn test9_regeneration() {
     let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC9_STRIPPED);
     gen_file(&temp_dir, comment_file, &get_basic9_md(test_file));
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false, true);
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        false,
+        true,
+    );
     compare_files(BASIC9, &temp_dir.path().join(test_file));
 }
 
@@ -894,7 +968,10 @@ fn test10_strip() {
         stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
     }
     println!("Testing markdown");
-    compare_files(&get_basic10_md(test_file), &temp_dir.path().join(comment_file));
+    compare_files(
+        &get_basic10_md(test_file),
+        &temp_dir.path().join(comment_file),
+    );
     println!("Testing stripped file");
     compare_files(BASIC10_STRIPPED, &temp_dir.path().join(test_file));
 }
@@ -907,9 +984,13 @@ fn test10_regeneration() {
     let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC10_STRIPPED);
     gen_file(&temp_dir, comment_file, &get_basic10_md(test_file));
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          true, false);
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        true,
+        false,
+    );
     compare_files(BASIC10, &temp_dir.path().join(test_file));
 }
 
@@ -921,9 +1002,13 @@ fn test10_regeneration2() {
     let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC10_STRIPPED);
     gen_file(&temp_dir, comment_file, &get_basic10_md(test_file));
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false, true);
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        false,
+        true,
+    );
     compare_files(BASIC10, &temp_dir.path().join(test_file));
 }
 
@@ -935,9 +1020,13 @@ fn test10_regeneration3() {
     let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC10_STRIPPED);
     gen_file(&temp_dir, comment_file, &get_basic10_md(test_file));
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          false, false);
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        false,
+        false,
+    );
     compare_files(BASIC10, &temp_dir.path().join(test_file));
 }
 
@@ -949,9 +1038,13 @@ fn test10_regeneration4() {
     let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC10_STRIPPED);
     gen_file(&temp_dir, comment_file, &get_basic10_md(test_file));
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          true, true);
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        true,
+        true,
+    );
     compare_files(BASIC10, &temp_dir.path().join(test_file));
 }
 
@@ -1097,7 +1190,10 @@ fn test11_strip() {
         stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
     }
     println!("Testing markdown");
-    compare_files(&get_basic11_md(test_file), &temp_dir.path().join(comment_file));
+    compare_files(
+        &get_basic11_md(test_file),
+        &temp_dir.path().join(comment_file),
+    );
     println!("Testing stripped file");
     compare_files(BASIC11_STRIPPED, &temp_dir.path().join(test_file));
 }
@@ -1110,16 +1206,45 @@ fn test11_regeneration() {
     let temp_dir = tempdir().unwrap();
     gen_file(&temp_dir, test_file, BASIC11_STRIPPED);
     gen_file(&temp_dir, comment_file, &get_basic11_md(test_file));
-    stripper_lib::regenerate_doc_comments(temp_dir.path().to_str().unwrap(), false,
-                                          &temp_dir.path().join(comment_file).to_str().unwrap(),
-                                          true, false);
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        true,
+        false,
+    );
     compare_files(BASIC11, &temp_dir.path().join(test_file));
 }
 
-const BASIC12 : &str = r#"impl Foo {
+const BASIC12: &str = r#"impl Foo {
     // rustdoc-stripper-ignore-next
     /// existing comment
+    ///
+    /// with multiple lines
     pub unsafe fn new() -> Foo {}
+
+    // rustdoc-stripper-ignore-next
+    /// one line!
+    pub fn bar() {}
+}
+
+mod foo {
+    // rustdoc-stripper-ignore-next
+    //! hello!
+    //!
+    //! how are you?
+}
+
+mod bar {
+    // rustdoc-stripper-ignore-next
+    /*! Fine
+
+    and you? */
+}
+
+mod foobar {
+    // rustdoc-stripper-ignore-next
+    //! hard day...
 }
 "#;
 
@@ -1140,7 +1265,93 @@ fn test12_strip() {
         stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
     }
     println!("Testing markdown");
-    compare_files(&get_basic12_md(test_file), &temp_dir.path().join(comment_file));
+    compare_files(
+        &get_basic12_md(test_file),
+        &temp_dir.path().join(comment_file),
+    );
     println!("Testing stripped file");
     compare_files(BASIC12, &temp_dir.path().join(test_file));
+}
+
+const BASIC13: &str = r#"mod bar {
+    // rustdoc-stripper-ignore-next
+    /*! Fine
+
+    and you? */
+}
+
+mod foobar {
+    //! hard day...
+}
+"#;
+
+const BASIC13_WEIRD: &str = r#"mod bar {
+    // rustdoc-stripper-ignore-next
+    /*! Fine
+
+    and you? */
+}
+
+/// hard day...
+mod foobar {
+}
+"#;
+
+const BASIC13_STRIPPED: &str = r#"mod bar {
+    // rustdoc-stripper-ignore-next
+    /*! Fine
+
+    and you? */
+}
+
+mod foobar {
+}
+"#;
+
+fn get_basic13_md(file: &str) -> String {
+    let x = r###"
+<!-- file_comment mod foobar -->
+hard day...
+"###;
+    let mut y = format!("<!-- file {} -->", file);
+    y.push_str(x);
+    y
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test13_strip() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC13);
+    {
+        let mut f = gen_file(&temp_dir, comment_file, "");
+        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
+    }
+    println!("Testing markdown");
+    compare_files(
+        &get_basic13_md(test_file),
+        &temp_dir.path().join(comment_file),
+    );
+    println!("Testing stripped file");
+    compare_files(BASIC13_STRIPPED, &temp_dir.path().join(test_file));
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test13_regeneration() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC13_STRIPPED);
+    gen_file(&temp_dir, comment_file, &get_basic13_md(test_file));
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        false,
+        false,
+    );
+    compare_files(BASIC13_WEIRD, &temp_dir.path().join(test_file));
 }

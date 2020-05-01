@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt::{Debug, Display, Error, Formatter};
 use std::borrow::Borrow;
+use std::fmt::{Debug, Display, Error, Formatter};
 
 #[derive(Debug, Clone)]
 pub struct ParseResult {
     pub event_list: Vec<EventInfo>,
     pub comment_lines: Vec<usize>,
-    pub original_content : Vec<String>,
+    pub original_content: Vec<String>,
 }
 
 #[derive(Clone)]
@@ -30,10 +30,7 @@ pub struct EventInfo {
 
 impl EventInfo {
     pub fn new(line: usize, event: EventType) -> EventInfo {
-        EventInfo {
-            line,
-            event,
-        }
+        EventInfo { line, event }
     }
 }
 
@@ -77,7 +74,7 @@ impl TypeStruct {
         TypeStruct {
             ty,
             name: name.to_owned(),
-            args: vec!(),
+            args: vec![],
             parent: None,
         }
     }
@@ -109,7 +106,7 @@ impl TypeStruct {
                     } else {
                         recur(&t.parent, true, ignore_macros) + 1
                     }
-                },
+                }
                 _ => 0,
             }
         }
@@ -121,7 +118,14 @@ impl Debug for TypeStruct {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         let parent = &self.parent;
         match *parent {
-            Some(ref p) => write!(f, "{:?}::{} {}{}", p, self.ty, self.name, self.args.join(" ")),
+            Some(ref p) => write!(
+                f,
+                "{:?}::{} {}{}",
+                p,
+                self.ty,
+                self.name,
+                self.args.join(" ")
+            ),
             _ => write!(f, "{} {}{}", self.ty, self.name, self.args.join(" ")),
         }
     }
@@ -146,7 +150,7 @@ fn sub_call(f: &mut Formatter, t: &TypeStruct, is_parent: bool) -> Result<(), Er
             Some(ref p) => {
                 sub_call(f, p.borrow(), true)?;
                 show(f, t, is_parent)
-            },
+            }
             _ => show(f, t, is_parent),
         }
     }

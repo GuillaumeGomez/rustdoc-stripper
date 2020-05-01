@@ -12,35 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod consts;
 pub mod regenerate;
 pub mod strip;
 pub mod types;
 pub mod utils;
-mod consts;
 
-pub use regenerate::{
-    parse_cmts,
-    regenerate_comments,
-    regenerate_doc_comments,
-};
+pub use consts::{END_INFO, FILE, FILE_COMMENT, MOD_COMMENT, OUTPUT_COMMENT_FILE};
+pub use regenerate::{parse_cmts, regenerate_comments, regenerate_doc_comments};
 pub use strip::strip_comments;
-pub use consts::{
-    FILE,
-    FILE_COMMENT,
-    MOD_COMMENT,
-    END_INFO,
-    OUTPUT_COMMENT_FILE,
-};
-pub use types::{
-    EventType,
-    Type,
-    TypeStruct,
-};
+pub use types::{EventType, Type, TypeStruct};
 pub use utils::{
-    write_comment,
-    write_item_doc,
-    write_file,
-    write_file_name,
-    write_file_comment,
-    loop_over_files,
+    loop_over_files, write_comment, write_file, write_file_comment, write_file_name, write_item_doc,
 };
