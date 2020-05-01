@@ -135,10 +135,15 @@ fn get_three_parts<'a>(
     stop: &str,
 ) -> (String, String, &'a str) {
     if let Some(pos) = after.find(stop) {
+        let extra = if stop != "\n" {
+            stop.len()
+        } else {
+            0
+        };
         (
             before.to_owned(),
             format!("{} {}", comment_sign, &after[0..pos]),
-            &after[pos..],
+            &after[pos + extra..],
         )
     } else {
         (
@@ -149,8 +154,13 @@ fn get_three_parts<'a>(
     }
 }
 
-fn check_if_should_be_ignored(text: &str) -> bool {
-    if let Some(end_pos) = text.rfind('\n') {
+fn check_if_should_be_ignored(text: &str, doc_comment: &str) -> bool {
+    let end = if text.len() <= doc_comment.len() {
+        text.len() - 1
+    } else {
+        text.len() - doc_comment.len()
+    };
+    if let Some(end_pos) = text[..end].rfind('\n') {
         if let Some(start_pos) = text[..end_pos].rfind('\n') {
             return text[start_pos..end_pos]
                 .trim_start()
@@ -232,14 +242,33 @@ fn clean_input(s: &str) -> String {
                 break;
             }
             BlockKind::DocComment((before, doc_comment, after))
-                if !check_if_should_be_ignored(&s[..s.len() - after.len()]) =>
+                if !check_if_should_be_ignored(&s[..s.len() - after.len()], &doc_comment) =>
             {
                 ret.push_str(&transform_code(&before));
                 ret.push_str(&doc_comment);
                 after
             }
-            BlockKind::Comment((before, comment, after))
-            | BlockKind::DocComment((before, comment, after)) => {
+            BlockKind::DocComment((before, comment, after)) => {
+                ret.push_str(&transform_code(&before));
+                for _ in 0..comment.split('\n').count() - 1 {
+                    ret.push_str(" \n ");
+                }
+                // If this is an inline comment, we need to discard the whole block as well.
+                if &comment[1..2] != "*" {
+                    let mut extra = 1;
+                    let doc_comment = &comment[..3];
+                    for line in after.split('\n').skip(1) {
+                        if !line.trim_start().starts_with(doc_comment) {
+                            break;
+                        }
+                        extra += line.len() + 1; // + 1 is for the backline
+                    }
+                    &after[extra..]
+                } else {
+                    after
+                }
+            }
+            BlockKind::Comment((before, comment, after)) => {
                 ret.push_str(&transform_code(&before));
                 for _ in 0..comment.split('\n').count() - 1 {
                     ret.push_str(" \n ");

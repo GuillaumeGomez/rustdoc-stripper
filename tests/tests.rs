@@ -1222,6 +1222,29 @@ const BASIC12: &str = r#"impl Foo {
     ///
     /// with multiple lines
     pub unsafe fn new() -> Foo {}
+
+    // rustdoc-stripper-ignore-next
+    /// one line!
+    pub fn bar() {}
+}
+
+mod foo {
+    // rustdoc-stripper-ignore-next
+    //! hello!
+    //!
+    //! how are you?
+}
+
+mod bar {
+    // rustdoc-stripper-ignore-next
+    /*! Fine
+
+    and you? */
+}
+
+mod foobar {
+    // rustdoc-stripper-ignore-next
+    //! hard day...
 }
 "#;
 
@@ -1248,4 +1271,87 @@ fn test12_strip() {
     );
     println!("Testing stripped file");
     compare_files(BASIC12, &temp_dir.path().join(test_file));
+}
+
+const BASIC13: &str = r#"mod bar {
+    // rustdoc-stripper-ignore-next
+    /*! Fine
+
+    and you? */
+}
+
+mod foobar {
+    //! hard day...
+}
+"#;
+
+const BASIC13_WEIRD: &str = r#"mod bar {
+    // rustdoc-stripper-ignore-next
+    /*! Fine
+
+    and you? */
+}
+
+/// hard day...
+mod foobar {
+}
+"#;
+
+const BASIC13_STRIPPED: &str = r#"mod bar {
+    // rustdoc-stripper-ignore-next
+    /*! Fine
+
+    and you? */
+}
+
+mod foobar {
+}
+"#;
+
+fn get_basic13_md(file: &str) -> String {
+    let x = r###"
+<!-- file_comment mod foobar -->
+hard day...
+"###;
+    let mut y = format!("<!-- file {} -->", file);
+    y.push_str(x);
+    y
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test13_strip() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC13);
+    {
+        let mut f = gen_file(&temp_dir, comment_file, "");
+        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, false);
+    }
+    println!("Testing markdown");
+    compare_files(
+        &get_basic13_md(test_file),
+        &temp_dir.path().join(comment_file),
+    );
+    println!("Testing stripped file");
+    compare_files(BASIC13_STRIPPED, &temp_dir.path().join(test_file));
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test13_regeneration() {
+    let test_file = "basic.rs";
+    let comment_file = "basic.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC13_STRIPPED);
+    gen_file(&temp_dir, comment_file, &get_basic13_md(test_file));
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        false,
+        false,
+    );
+    compare_files(BASIC13_WEIRD, &temp_dir.path().join(test_file));
 }
