@@ -1248,7 +1248,7 @@ mod foobar {
 }
 "#;
 
-fn get_basic12_md(file: &str) -> String {
+fn get_basic12_md(_file: &str) -> String {
     String::new()
 }
 
