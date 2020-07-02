@@ -79,6 +79,15 @@ impl TypeStruct {
         }
     }
 
+    pub fn new_with_args<T: ::std::string::ToString>(ty: Type, name: &str, args: &[T]) -> TypeStruct {
+        TypeStruct {
+            ty,
+            name: name.to_owned(),
+            args: args.iter().map(|x| x.to_string()).collect(),
+            parent: None,
+        }
+    }
+
     /*pub fn from_args(ty: Type, args: Vec<String>) -> TypeStruct {
         TypeStruct {
             ty: ty,
@@ -143,7 +152,7 @@ fn sub_call(f: &mut Formatter, t: &TypeStruct, is_parent: bool) -> Result<(), Er
     if (t.ty == Type::Macro || t.ty.is_macro_definition()) && is_parent {
         match t.parent {
             Some(ref p) => sub_call(f, p.borrow(), true),
-            _ => Ok(()),
+            _ => show(f, t, is_parent),
         }
     } else {
         match t.parent {
