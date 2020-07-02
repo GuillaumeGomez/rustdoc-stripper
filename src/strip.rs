@@ -20,7 +20,7 @@ use std::process::exit;
 use types::{EventInfo, EventType, ParseResult, Type, TypeStruct};
 use utils::{join, write_comment, write_file, write_file_comment};
 
-const STOP_CHARACTERS: &[char] = &['\t', '\n', '\r', '<', '{', ':', ';', '!', '('];
+const STOP_CHARACTERS: &[char] = &['\t', '\n', '\r', '<', '{', ':', ';', '!', '(', ','];
 const COMMENT_ID: &[&str] = &["//", "/*"];
 const DOC_COMMENT_ID: &[&str] = &["///", "/*!", "//!"];
 const IGNORE_NEXT_COMMENT: &str = "// rustdoc-stripper-ignore-next";
@@ -316,6 +316,16 @@ fn clear_events(mut events: Vec<EventInfo>) -> Vec<EventInfo> {
     events
 }
 
+fn remove_stop_chars(s: &str) -> String {
+    let mut s = s.to_owned();
+    for c in STOP_CHARACTERS {
+        if s.contains(*c) {
+            s = s.replace(&c.to_string(), "");
+        }
+    }
+    s
+}
+
 #[allow(clippy::useless_let_if_seq)]
 fn build_event_inner(
     it: &mut usize,
@@ -479,7 +489,10 @@ fn build_event_inner(
             _ => {
                 event_list.push(EventInfo::new(
                     *line,
-                    EventType::Type(TypeStruct::new(Type::Unknown, words[*it])),
+                    EventType::Type(TypeStruct::new(
+                        Type::Unknown,
+                        &remove_stop_chars(words[*it]),
+                    )),
                 ));
             }
         }

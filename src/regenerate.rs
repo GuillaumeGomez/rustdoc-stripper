@@ -76,27 +76,31 @@ fn get_corresponding_type(
     original_content: &mut Vec<String>,
     ignore_macros: bool,
 ) -> Option<usize> {
+    if to_find.is_none() {
+        return None;
+    }
+    let to_find = to_find.as_ref().unwrap();
     let mut pos = 0;
 
     while pos < elements.len() {
-        if match (&elements[pos].0, to_find) {
-            (&Some(ref a), &Some(ref b)) => {
-                let ret = a == b;
+        if match elements[pos].0 {
+            Some(ref a) => {
+                let ret = a == to_find;
 
                 // to detect variants
                 if !ret
-                    && b.ty == Type::Unknown
-                    && b.parent.is_some()
+                    && to_find.ty == Type::Unknown
+                    && to_find.parent.is_some()
                     && a.parent.is_some()
-                    && a.parent == b.parent
+                    && a.parent == to_find.parent
                 {
-                    if match b.parent {
+                    if match to_find.parent {
                         Some(ref p) => {
                             p.ty == Type::Struct || p.ty == Type::Enum || p.ty == Type::Use
                         }
                         None => false,
                     } {
-                        let mut tmp = b.clone();
+                        let mut tmp = to_find.clone();
                         tmp.ty = Type::Variant;
                         a == &tmp
                     } else {
