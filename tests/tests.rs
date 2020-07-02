@@ -1248,7 +1248,7 @@ mod foobar {
 }
 "#;
 
-fn get_basic12_md(file: &str) -> String {
+fn get_basic12_md(_file: &str) -> String {
     String::new()
 }
 
@@ -1354,4 +1354,82 @@ fn test13_regeneration() {
         false,
     );
     compare_files(BASIC13_WEIRD, &temp_dir.path().join(test_file));
+}
+
+const BASIC14: &str = r#"
+/// Foo
+enum Foo {
+    /// Bar
+    Bar,
+    Blabla,
+    /// Toto
+    Toto,
+}
+"#;
+
+const BASIC14_STRIPPED: &str = r#"
+enum Foo {
+    Bar,
+    Blabla,
+    Toto,
+}
+"#;
+
+fn get_basic14_md(file: &str) -> String {
+    format!(
+        r#"<!-- file {} -->
+<!-- enum Foo -->
+Foo
+<!-- enum Foo::variant Bar -->
+Bar
+<!-- enum Foo::variant Toto -->
+Toto
+"#,
+        file
+    )
+}
+
+const BASIC14_MD: &str = r#"<!-- file * -->
+<!-- enum Foo -->
+Foo
+<!-- enum Foo::variant Bar -->
+Bar
+<!-- enum Foo::variant Toto -->
+Toto
+"#;
+
+#[allow(unused_must_use)]
+#[test]
+fn test14_strip_enum() {
+    let test_file = "basic14.rs";
+    let comment_file = "basic14.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC14);
+    {
+        let mut f = gen_file(&temp_dir, comment_file, "");
+        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, true);
+    }
+    compare_files(
+        &get_basic14_md(test_file),
+        &temp_dir.path().join(comment_file),
+    );
+    compare_files(BASIC14_STRIPPED, &temp_dir.path().join(test_file));
+}
+
+#[allow(unused_must_use)]
+#[test]
+fn test14_regeneration_enum() {
+    let test_file = "basic14.rs";
+    let comment_file = "basic14.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC14_STRIPPED);
+    gen_file(&temp_dir, comment_file, BASIC14_MD);
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        true,
+        false,
+    );
+    compare_files(BASIC14, &temp_dir.path().join(test_file));
 }
