@@ -79,7 +79,11 @@ impl TypeStruct {
         }
     }
 
-    pub fn new_with_args<T: ::std::string::ToString>(ty: Type, name: &str, args: &[T]) -> TypeStruct {
+    pub fn new_with_args<T: ::std::string::ToString>(
+        ty: Type,
+        name: &str,
+        args: &[T],
+    ) -> TypeStruct {
         TypeStruct {
             ty,
             name: name.to_owned(),

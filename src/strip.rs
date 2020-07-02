@@ -135,11 +135,7 @@ fn get_three_parts<'a>(
     stop: &str,
 ) -> (String, String, &'a str) {
     if let Some(pos) = after.find(stop) {
-        let extra = if stop != "\n" {
-            stop.len()
-        } else {
-            0
-        };
+        let extra = if stop != "\n" { stop.len() } else { 0 };
         (
             before.to_owned(),
             format!("{} {}", comment_sign, &after[0..pos]),
