@@ -30,10 +30,14 @@ IMPORTANT: Only files ending with '.rs' will be stripped/regenerated.
 
 You can prevent a doc comment to be stripped by prepending it by `// rustdoc-stripper-ignore-next`.
 
+You can mark the end of the block to ignore with `// rustdoc-stripper-ignore-next-stop`.
+
 Example:
 
 ```rust
 // rustdoc-stripper-ignore-next
 /// existing comment
+// rustdoc-stripper-ignore-next-stop
+/// This part will be removed when running rustdoc-stripper!
 pub unsafe fn new() -> Foo {}
 ```
