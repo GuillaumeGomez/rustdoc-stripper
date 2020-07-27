@@ -41,25 +41,22 @@ fn gen_indent_from(from: &str) -> String {
     String::new()
 }
 
+/// Returns `true` in case a "// rustdoc-stripper-ignore-next-stop" was inserted.
 fn regenerate_comment(
     is_file_comment: bool,
     position: usize,
     indent: usize,
     comment: &str,
     original_content: &mut Vec<String>,
-) {
-    let mut has_ignore_doc_comment = false;
-    for line in original_content.iter() {
-        if line.trim() == strip::IGNORE_NEXT_COMMENT {
-            has_ignore_doc_comment = true;
-        } else if line.trim() == strip::IGNORE_NEXT_COMMENT_STOP {
-            has_ignore_doc_comment = false;
+    need_check_ignore_doc_comment: bool,
+) -> bool {
+    let mut need_to_add_ignore_next_comment_stop = false;
+    if need_check_ignore_doc_comment && position > 0 {
+        let prev = original_content[position - 1].trim();
+        if strip::DOC_COMMENT_ID.iter().any(|d| prev.starts_with(d)) {
+            need_to_add_ignore_next_comment_stop = true;
         }
     }
-    if has_ignore_doc_comment {
-        ;
-    }
-    // println!("°°°°°°°°°°°> {} {:?}", position, original_content);
     let is_empty = comment.trim().is_empty();
     let read_indent = if is_file_comment {
         gen_indent(indent)
@@ -77,6 +74,17 @@ fn regenerate_comment(
             if is_empty { "" } else { &comment }
         ),
     );
+    if need_to_add_ignore_next_comment_stop {
+        original_content.insert(
+            position,
+            format!(
+                "{}{}",
+                &read_indent,
+                strip::IGNORE_NEXT_COMMENT_STOP,
+            ),
+        );
+    }
+    need_to_add_ignore_next_comment_stop
 }
 
 #[allow(clippy::useless_let_if_seq)]
@@ -139,6 +147,7 @@ fn get_corresponding_type(
                     line -= 1;
                 }
             }
+            let mut first = true;
             for comment in (&elements[pos].1)
                 .iter()
                 .skip(if file_comment { 1 } else { 0 })
@@ -148,14 +157,18 @@ fn get_corresponding_type(
                 } else {
                     0
                 };
-                regenerate_comment(
+                if regenerate_comment(
                     file_comment,
                     line + *decal,
                     depth + 1,
                     &comment,
                     original_content,
-                );
+                    first,
+                ) {
+                    *decal += 1;
+                }
                 *decal += 1;
+                first = false;
             }
             return Some(pos);
         }
@@ -223,8 +236,6 @@ fn do_regenerate(
 ) {
     let mut position = 0;
     let mut decal = 0;
-
-    // println!("++++++++++++++++++> {:?}", parse_result);
 
     // first, we need to put back file comment
     for entry in elements.iter() {

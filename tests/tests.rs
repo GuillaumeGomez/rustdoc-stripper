@@ -109,8 +109,6 @@ fn compare_files(expected_content: &str, file: &Path) {
     let mut buf = String::new();
     f.read_to_string(&mut buf).unwrap();
     println!();
-    println!("ZZZZZZZZZZZZZ{}", expected_content);
-    println!("YYYYYYYYYYYYYY\n{}XXXXXXXXXXXXXXXXXX", buf);
     for (l, r) in expected_content.lines().zip(buf.lines()) {
         assert_eq!(l, r, "compare_files0 failed");
         println!("{}", l);
@@ -1503,23 +1501,23 @@ fn get_basic15_md(file: &str) -> String {
     )
 }
 
-// #[allow(unused_must_use)]
-// #[test]
-// fn test15_regeneration_ignore() {
-//     let test_file = "basic15.rs";
-//     let comment_file = "basic15.md";
-//     let temp_dir = tempdir().unwrap();
-//     gen_file(&temp_dir, test_file, BASIC15_STRIPPED);
-//     gen_file(&temp_dir, comment_file, &get_basic15_md(test_file));
-//     stripper_lib::regenerate_doc_comments(
-//         temp_dir.path().to_str().unwrap(),
-//         false,
-//         &temp_dir.path().join(comment_file).to_str().unwrap(),
-//         true,
-//         false,
-//     );
-//     compare_files(BASIC15, &temp_dir.path().join(test_file));
-// }
+#[allow(unused_must_use)]
+#[test]
+fn test15_regeneration_ignore() {
+    let test_file = "basic15.rs";
+    let comment_file = "basic15.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC15_STRIPPED);
+    gen_file(&temp_dir, comment_file, &get_basic15_md(test_file));
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        true,
+        false,
+    );
+    compare_files(BASIC15, &temp_dir.path().join(test_file));
+}
 
 #[allow(unused_must_use)]
 #[test]
@@ -1532,11 +1530,9 @@ fn test15_strip_ignore() {
         let mut f = gen_file(&temp_dir, comment_file, "");
         stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, true);
     }
-    println!("!!!!! first comparison!");
     compare_files(
         &get_basic15_md(test_file),
         &temp_dir.path().join(comment_file),
     );
-    println!("!!!!! second comparison!");
     compare_files(BASIC15_STRIPPED, &temp_dir.path().join(test_file));
 }

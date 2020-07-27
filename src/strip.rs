@@ -22,7 +22,7 @@ use utils::{join, write_comment, write_file, write_file_comment};
 
 const STOP_CHARACTERS: &[char] = &['\t', '\n', '\r', '<', '{', ':', ';', '!', '(', ','];
 const COMMENT_ID: &[&str] = &["//", "/*"];
-const DOC_COMMENT_ID: &[&str] = &["///", "/*!", "//!", "/**"];
+pub(crate) const DOC_COMMENT_ID: &[&str] = &["///", "/*!", "//!", "/**"];
 pub(crate) const IGNORE_NEXT_COMMENT: &str = "// rustdoc-stripper-ignore-next";
 pub(crate) const IGNORE_NEXT_COMMENT_STOP: &str = "// rustdoc-stripper-ignore-next-stop";
 
@@ -151,12 +151,7 @@ fn get_three_parts<'a>(
     }
 }
 
-fn check_if_should_be_ignored(text: &str, doc_comment: &str) -> bool {
-    let end = if text.len() <= doc_comment.len() {
-        text.len() - 1
-    } else {
-        text.len() - doc_comment.len()
-    };
+fn check_if_should_be_ignored(text: &str) -> bool {
     let mut ignore_until_multi_end = false;
     for line in text.split('\n').rev() {
         let line = line.trim();
@@ -257,7 +252,7 @@ fn clean_input(s: &str) -> String {
                 break;
             }
             BlockKind::DocComment((before, doc_comment, after))
-                if !check_if_should_be_ignored(&s[..s.len() - after.len()], &doc_comment) =>
+                if !check_if_should_be_ignored(&s[..s.len() - after.len()]) =>
             {
                 ret.push_str(&transform_code(&before));
                 ret.push_str(&doc_comment);
