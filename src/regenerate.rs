@@ -48,6 +48,18 @@ fn regenerate_comment(
     comment: &str,
     original_content: &mut Vec<String>,
 ) {
+    let mut has_ignore_doc_comment = false;
+    for line in original_content.iter() {
+        if line.trim() == strip::IGNORE_NEXT_COMMENT {
+            has_ignore_doc_comment = true;
+        } else if line.trim() == strip::IGNORE_NEXT_COMMENT_STOP {
+            has_ignore_doc_comment = false;
+        }
+    }
+    if has_ignore_doc_comment {
+        ;
+    }
+    // println!("°°°°°°°°°°°> {} {:?}", position, original_content);
     let is_empty = comment.trim().is_empty();
     let read_indent = if is_file_comment {
         gen_indent(indent)
@@ -211,6 +223,8 @@ fn do_regenerate(
 ) {
     let mut position = 0;
     let mut decal = 0;
+
+    // println!("++++++++++++++++++> {:?}", parse_result);
 
     // first, we need to put back file comment
     for entry in elements.iter() {

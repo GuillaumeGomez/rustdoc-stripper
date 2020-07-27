@@ -22,8 +22,9 @@ use utils::{join, write_comment, write_file, write_file_comment};
 
 const STOP_CHARACTERS: &[char] = &['\t', '\n', '\r', '<', '{', ':', ';', '!', '(', ','];
 const COMMENT_ID: &[&str] = &["//", "/*"];
-const DOC_COMMENT_ID: &[&str] = &["///", "/*!", "//!"];
-const IGNORE_NEXT_COMMENT: &str = "// rustdoc-stripper-ignore-next";
+const DOC_COMMENT_ID: &[&str] = &["///", "/*!", "//!", "/**"];
+pub(crate) const IGNORE_NEXT_COMMENT: &str = "// rustdoc-stripper-ignore-next";
+pub(crate) const IGNORE_NEXT_COMMENT_STOP: &str = "// rustdoc-stripper-ignore-next-stop";
 
 fn move_to(words: &[&str], it: &mut usize, limit: &str, line: &mut usize, start_remove: &str) {
     if words[*it][start_remove.len()..].contains(&limit) {
@@ -156,11 +157,27 @@ fn check_if_should_be_ignored(text: &str, doc_comment: &str) -> bool {
     } else {
         text.len() - doc_comment.len()
     };
-    if let Some(end_pos) = text[..end].rfind('\n') {
-        if let Some(start_pos) = text[..end_pos].rfind('\n') {
-            return text[start_pos..end_pos]
-                .trim_start()
-                .starts_with(IGNORE_NEXT_COMMENT);
+    let mut ignore_until_multi_end = false;
+    for line in text.split('\n').rev() {
+        let line = line.trim();
+        if !ignore_until_multi_end && !line.starts_with("//") {
+            if line.trim().ends_with("*/") {
+                ignore_until_multi_end = !line.starts_with("/**") && !line.starts_with("/*!");
+                continue;
+            }
+        } else if line.starts_with("/*") {
+            ignore_until_multi_end = false;
+            continue;
+        }
+        if !ignore_until_multi_end {
+            if line == IGNORE_NEXT_COMMENT_STOP {
+                return false;
+            } else if line == IGNORE_NEXT_COMMENT {
+                return true;
+            }
+            if !line.starts_with("///") && !line.starts_with("//!") {
+                break;
+            }
         }
     }
     false
@@ -228,6 +245,8 @@ fn transform_code(code: &str) -> String {
         .replace("(", " (")
 }
 
+// Replaces lines that should be removed (doc comments mostly) with empty lines to keep a working
+// line match.
 fn clean_input(s: &str) -> String {
     let mut ret = String::new();
     let mut text = s;
@@ -249,20 +268,7 @@ fn clean_input(s: &str) -> String {
                 for _ in 0..comment.split('\n').count() - 1 {
                     ret.push_str(" \n ");
                 }
-                // If this is an inline comment, we need to discard the whole block as well.
-                if &comment[1..2] != "*" {
-                    let mut extra = 1;
-                    let doc_comment = &comment[..3];
-                    for line in after.split('\n').skip(1) {
-                        if !line.trim_start().starts_with(doc_comment) {
-                            break;
-                        }
-                        extra += line.len() + 1; // + 1 is for the backline
-                    }
-                    &after[extra..]
-                } else {
-                    after
-                }
+                after
             }
             BlockKind::Comment((before, comment, after)) => {
                 ret.push_str(&transform_code(&before));
@@ -351,7 +357,7 @@ fn build_event_inner(
                     .replace("r", "");
                 move_to(&words, it, &format!("\"{}", end), line, "r#");
             }
-            "///" => {
+            "///" | "///\n" => {
                 comment_lines.push(*line);
                 event_list.push(EventInfo::new(
                     *line,
@@ -359,7 +365,7 @@ fn build_event_inner(
                 ));
                 move_to(&words, it, "\n", line, "");
             }
-            "//!" => {
+            "//!" | "//!\n" => {
                 comment_lines.push(*line);
                 event_list.push(EventInfo::new(
                     *line,
@@ -370,7 +376,7 @@ fn build_event_inner(
                 }
                 move_to(&words, it, "\n", line, "");
             }
-            "/*!" => {
+            "/*!" | "/*!\n" => {
                 let mark = *line;
                 move_until(&words, it, "*/", line);
                 for (pos, s) in b_content.iter().enumerate().take(*line).skip(mark) {
@@ -384,11 +390,32 @@ fn build_event_inner(
                     removed = true;
                 }
                 event_list.push(EventInfo::new(
-                    *line,
+                    mark,
                     EventType::FileComment("*/".to_owned()),
                 ));
                 if removed {
                     event_list.push(EventInfo::new(*line, EventType::FileComment("".to_owned())));
+                }
+            }
+            "/**" | "/**\n" => {
+                let mark = *line;
+                move_until(&words, it, "*/", line);
+                for (pos, s) in b_content.iter().enumerate().take(*line).skip(mark) {
+                    comment_lines.push(pos);
+                    event_list.push(EventInfo::new(*line, EventType::Comment(s.to_owned())));
+                }
+                comment_lines.push(*line);
+                let mut removed = false;
+                if *line + 1 < b_content.len() && b_content[*line + 1].is_empty() {
+                    comment_lines.push(*line + 1);
+                    removed = true;
+                }
+                event_list.push(EventInfo::new(
+                    mark,
+                    EventType::FileComment("*/".to_owned()),
+                ));
+                if removed {
+                    event_list.push(EventInfo::new(*line, EventType::Comment("".to_owned())));
                 }
             }
             "use" | "mod" => {
@@ -447,7 +474,16 @@ fn build_event_inner(
                     )),
                 ));
             }
-            "{" => {
+            c if c.starts_with("impl<") => {
+                event_list.push(EventInfo::new(
+                    *line,
+                    EventType::Type(TypeStruct::new(
+                        Type::Impl,
+                        &join(&get_impl(&words, it, line), " "),
+                    )),
+                ));
+            }
+            x if x == "{" || x == "{\n" => {
                 if let Some(ref mut par_count) = par_count {
                     *par_count += 1;
                 }
@@ -464,8 +500,11 @@ fn build_event_inner(
                     );
                     waiting_for_macro = false;
                 }
+                if x == "}\n" {
+                    *line += 1;
+                }
             }
-            "}" => {
+            x if x == "}" || x == "}\n" => {
                 if let Some(ref mut par_count) = par_count {
                     *par_count -= 1;
                     if *par_count <= 0 {
@@ -473,6 +512,9 @@ fn build_event_inner(
                     }
                 }
                 event_list.push(EventInfo::new(*line, EventType::OutScope));
+                if x == "}\n" {
+                    *line += 1;
+                }
             }
             "\n" => {
                 *line += 1;
@@ -485,8 +527,9 @@ fn build_event_inner(
                     }
                     *it += 1;
                 }
+                *line += s.chars().filter(|c| *c == '\n').count();
             }
-            _ => {
+            x => {
                 event_list.push(EventInfo::new(
                     *line,
                     EventType::Type(TypeStruct::new(
@@ -494,6 +537,7 @@ fn build_event_inner(
                         &remove_stop_chars(words[*it]),
                     )),
                 ));
+                *line += x.chars().filter(|c| *c == '\n').count();
             }
         }
         *it += 1;
@@ -521,8 +565,9 @@ pub fn build_event_list(path: &Path) -> io::Result<ParseResult> {
         &b_content,
         None,
     );
+    let clear = clear_events(event_list);
     Ok(ParseResult {
-        event_list: clear_events(event_list),
+        event_list: clear,
         comment_lines,
         original_content: b_content,
     })
@@ -594,13 +639,13 @@ pub fn strip_comments<F: Write>(
                             "{}\n",
                             &write_file_comment(&unformat_comment(c), &current, ignore_macros)
                         );
-                        while match parse_result.event_list[it].event {
+                        while parse_result.event_list.get(it).map(|x| match x.event {
                             EventType::FileComment(ref c) => {
                                 comments.push_str(&format!("{}\n", unformat_comment(c)));
                                 true
                             }
                             _ => false,
-                        } {
+                        }).unwrap_or(false) {
                             it += 1;
                         }
                         write!(out_file, "{}", comments).unwrap();
@@ -622,10 +667,7 @@ pub fn strip_comments<F: Write>(
                         {
                             it += 1;
                         }
-                        if it >= parse_result.event_list.len() {
-                            continue;
-                        }
-                        while match parse_result.event_list[it].event {
+                        while parse_result.event_list.get(it).map(|x| match x.event {
                             EventType::Type(ref t) => match t.ty {
                                 Type::Unknown => match current {
                                     Some(ref cur) => {
@@ -673,7 +715,7 @@ pub fn strip_comments<F: Write>(
                                 }
                             },
                             _ => panic!("An item was expected for this comment: {}", comments),
-                        } {
+                        }).unwrap_or(false) {
                             it += 1;
                         }
                         continue;
@@ -695,10 +737,21 @@ pub fn strip_comments<F: Write>(
 }
 
 fn remove_comments(path: &Path, to_remove: &[usize], mut o_content: Vec<String>) {
+    let mut decal = 0;
     match File::create(path) {
         Ok(mut f) => {
-            for (decal, line) in to_remove.iter().enumerate() {
+            for line in to_remove.iter() {
+                if line - decal > 0 &&
+                    line - decal + 1 < o_content.len() &&
+                    o_content[line - decal - 1].trim() == IGNORE_NEXT_COMMENT_STOP {
+                    let l = o_content[line - decal + 1].trim();
+                    if DOC_COMMENT_ID.iter().any(|d| l.starts_with(d)) {
+                        o_content.remove(line - decal - 1);
+                        decal += 1;
+                    }
+                }
                 o_content.remove(line - decal);
+                decal += 1;
             }
             write!(f, "{}", o_content.join("\n")).unwrap();
         }

@@ -109,6 +109,8 @@ fn compare_files(expected_content: &str, file: &Path) {
     let mut buf = String::new();
     f.read_to_string(&mut buf).unwrap();
     println!();
+    println!("ZZZZZZZZZZZZZ{}", expected_content);
+    println!("YYYYYYYYYYYYYY\n{}XXXXXXXXXXXXXXXXXX", buf);
     for (l, r) in expected_content.lines().zip(buf.lines()) {
         assert_eq!(l, r, "compare_files0 failed");
         println!("{}", l);
@@ -1432,4 +1434,109 @@ fn test14_regeneration_enum() {
         false,
     );
     compare_files(BASIC14, &temp_dir.path().join(test_file));
+}
+
+const BASIC15_STRIPPED: &str = r#"
+// rustdoc-stripper-ignore-next
+/// Calls `gtk_widget_destroy()` on this widget.
+///
+/// # Safety
+///
+/// This will not necessarily entirely remove the widget from existence but
+/// you must *NOT* query the widget's state subsequently.  Do not call this
+/// yourself unless you really mean to.
+pub fn foo() {}
+
+// rustdoc-stripper-ignore-next
+/// lol
+pub fn bar() {}
+"#;
+
+const BASIC15: &str = r#"
+// rustdoc-stripper-ignore-next
+/// Calls `gtk_widget_destroy()` on this widget.
+///
+/// # Safety
+///
+/// This will not necessarily entirely remove the widget from existence but
+/// you must *NOT* query the widget's state subsequently.  Do not call this
+/// yourself unless you really mean to.
+// rustdoc-stripper-ignore-next-stop
+/// Utility function; intended to be connected to the `Widget::delete-event`
+/// signal on a `Window`. The function calls `WidgetExt::hide` on its
+/// argument, then returns `true`. If connected to ::delete-event, the
+/// result is that clicking the close button for a window (on the
+/// window frame, top right corner usually) will hide but not destroy
+/// the window. By default, GTK+ destroys windows when ::delete-event
+/// is received.
+///
+/// # Returns
+///
+/// `true`
+pub fn foo() {}
+
+// rustdoc-stripper-ignore-next
+/// lol
+pub fn bar() {}
+"#;
+
+const BASIC15_MD: &str = r#"<!-- fn foo -->
+Utility function; intended to be connected to the `Widget::delete-event`
+signal on a `Window`. The function calls `WidgetExt::hide` on its
+argument, then returns `true`. If connected to ::delete-event, the
+result is that clicking the close button for a window (on the
+window frame, top right corner usually) will hide but not destroy
+the window. By default, GTK+ destroys windows when ::delete-event
+is received.
+
+# Returns
+
+`true`
+"#;
+
+fn get_basic15_md(file: &str) -> String {
+    format!(
+        r#"<!-- file {} -->
+{}"#,
+        file,
+        BASIC15_MD,
+    )
+}
+
+// #[allow(unused_must_use)]
+// #[test]
+// fn test15_regeneration_ignore() {
+//     let test_file = "basic15.rs";
+//     let comment_file = "basic15.md";
+//     let temp_dir = tempdir().unwrap();
+//     gen_file(&temp_dir, test_file, BASIC15_STRIPPED);
+//     gen_file(&temp_dir, comment_file, &get_basic15_md(test_file));
+//     stripper_lib::regenerate_doc_comments(
+//         temp_dir.path().to_str().unwrap(),
+//         false,
+//         &temp_dir.path().join(comment_file).to_str().unwrap(),
+//         true,
+//         false,
+//     );
+//     compare_files(BASIC15, &temp_dir.path().join(test_file));
+// }
+
+#[allow(unused_must_use)]
+#[test]
+fn test15_strip_ignore() {
+    let test_file = "basic15-strip.rs";
+    let comment_file = "basic15-strip.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC15);
+    {
+        let mut f = gen_file(&temp_dir, comment_file, "");
+        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, true);
+    }
+    println!("!!!!! first comparison!");
+    compare_files(
+        &get_basic15_md(test_file),
+        &temp_dir.path().join(comment_file),
+    );
+    println!("!!!!! second comparison!");
+    compare_files(BASIC15_STRIPPED, &temp_dir.path().join(test_file));
 }
