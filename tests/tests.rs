@@ -1496,8 +1496,7 @@ fn get_basic15_md(file: &str) -> String {
     format!(
         r#"<!-- file {} -->
 {}"#,
-        file,
-        BASIC15_MD,
+        file, BASIC15_MD,
     )
 }
 

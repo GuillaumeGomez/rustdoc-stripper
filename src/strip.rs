@@ -639,13 +639,18 @@ pub fn strip_comments<F: Write>(
                             "{}\n",
                             &write_file_comment(&unformat_comment(c), &current, ignore_macros)
                         );
-                        while parse_result.event_list.get(it).map(|x| match x.event {
-                            EventType::FileComment(ref c) => {
-                                comments.push_str(&format!("{}\n", unformat_comment(c)));
-                                true
-                            }
-                            _ => false,
-                        }).unwrap_or(false) {
+                        while parse_result
+                            .event_list
+                            .get(it)
+                            .map(|x| match x.event {
+                                EventType::FileComment(ref c) => {
+                                    comments.push_str(&format!("{}\n", unformat_comment(c)));
+                                    true
+                                }
+                                _ => false,
+                            })
+                            .unwrap_or(false)
+                        {
                             it += 1;
                         }
                         write!(out_file, "{}", comments).unwrap();
@@ -667,55 +672,61 @@ pub fn strip_comments<F: Write>(
                         {
                             it += 1;
                         }
-                        while parse_result.event_list.get(it).map(|x| match x.event {
-                            EventType::Type(ref t) => match t.ty {
-                                Type::Unknown => match current {
-                                    Some(ref cur) => {
-                                        if cur.ty == Type::Enum
-                                            || cur.ty == Type::Struct
-                                            || cur.ty == Type::Use
-                                        {
-                                            if t.name == "pub" {
-                                                true
-                                            } else {
-                                                let mut copy = t.clone();
-                                                copy.ty = Type::Variant;
-                                                let tmp = add_to_type_scope(&current, &Some(copy));
-                                                write!(
-                                                    out_file,
-                                                    "{}",
-                                                    write_comment(
-                                                        &tmp.unwrap(),
-                                                        &unformat_comment(&comments),
-                                                        ignore_macros
+                        while parse_result
+                            .event_list
+                            .get(it)
+                            .map(|x| match x.event {
+                                EventType::Type(ref t) => match t.ty {
+                                    Type::Unknown => match current {
+                                        Some(ref cur) => {
+                                            if cur.ty == Type::Enum
+                                                || cur.ty == Type::Struct
+                                                || cur.ty == Type::Use
+                                            {
+                                                if t.name == "pub" {
+                                                    true
+                                                } else {
+                                                    let mut copy = t.clone();
+                                                    copy.ty = Type::Variant;
+                                                    let tmp =
+                                                        add_to_type_scope(&current, &Some(copy));
+                                                    write!(
+                                                        out_file,
+                                                        "{}",
+                                                        write_comment(
+                                                            &tmp.unwrap(),
+                                                            &unformat_comment(&comments),
+                                                            ignore_macros
+                                                        )
                                                     )
-                                                )
-                                                .unwrap();
-                                                false
+                                                    .unwrap();
+                                                    false
+                                                }
+                                            } else {
+                                                t.name == "pub"
                                             }
-                                        } else {
-                                            t.name == "pub"
                                         }
-                                    }
-                                    None => t.name == "pub",
-                                },
-                                _ => {
-                                    let tmp = add_to_type_scope(&current, &Some(t.clone()));
-                                    write!(
-                                        out_file,
-                                        "{}",
-                                        write_comment(
-                                            &tmp.unwrap(),
-                                            &unformat_comment(&comments),
-                                            ignore_macros
+                                        None => t.name == "pub",
+                                    },
+                                    _ => {
+                                        let tmp = add_to_type_scope(&current, &Some(t.clone()));
+                                        write!(
+                                            out_file,
+                                            "{}",
+                                            write_comment(
+                                                &tmp.unwrap(),
+                                                &unformat_comment(&comments),
+                                                ignore_macros
+                                            )
                                         )
-                                    )
-                                    .unwrap();
-                                    false
-                                }
-                            },
-                            _ => panic!("An item was expected for this comment: {}", comments),
-                        }).unwrap_or(false) {
+                                        .unwrap();
+                                        false
+                                    }
+                                },
+                                _ => panic!("An item was expected for this comment: {}", comments),
+                            })
+                            .unwrap_or(false)
+                        {
                             it += 1;
                         }
                         continue;
@@ -741,9 +752,10 @@ fn remove_comments(path: &Path, to_remove: &[usize], mut o_content: Vec<String>)
     match File::create(path) {
         Ok(mut f) => {
             for line in to_remove.iter() {
-                if line - decal > 0 &&
-                    line - decal + 1 < o_content.len() &&
-                    o_content[line - decal - 1].trim() == IGNORE_NEXT_COMMENT_STOP {
+                if line - decal > 0
+                    && line - decal + 1 < o_content.len()
+                    && o_content[line - decal - 1].trim() == IGNORE_NEXT_COMMENT_STOP
+                {
                     let l = o_content[line - decal + 1].trim();
                     if DOC_COMMENT_ID.iter().any(|d| l.starts_with(d)) {
                         o_content.remove(line - decal - 1);

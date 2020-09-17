@@ -77,11 +77,7 @@ fn regenerate_comment(
     if need_to_add_ignore_next_comment_stop {
         original_content.insert(
             position,
-            format!(
-                "{}{}",
-                &read_indent,
-                strip::IGNORE_NEXT_COMMENT_STOP,
-            ),
+            format!("{}{}", &read_indent, strip::IGNORE_NEXT_COMMENT_STOP,),
         );
     }
     need_to_add_ignore_next_comment_stop
