@@ -181,9 +181,9 @@ fn check_if_should_be_ignored(text: &str) -> bool {
 fn find_one_of<'a>(comments: &[&str], doc_comments: &[&str], text: &'a str) -> BlockKind<'a> {
     let mut last_pos = 0;
 
-    let tmp_text = &text[last_pos..];
-    if let Some(pos) = tmp_text.find('/') {
-        let tmp_text = &tmp_text[pos..];
+    let mut tmp_text = &text[last_pos..];
+    while let Some(pos) = tmp_text.find('/') {
+        tmp_text = &tmp_text[pos..];
         last_pos += pos;
         for com in doc_comments {
             if tmp_text.starts_with(com) {
@@ -223,6 +223,11 @@ fn find_one_of<'a>(comments: &[&str], doc_comments: &[&str], text: &'a str) -> B
                 }
             }
         }
+        if pos + 1 < tmp_text.len() {
+            tmp_text = &text[pos + 1..];
+        } else {
+            break;
+        }
     }
     BlockKind::Other(text)
 }
@@ -258,9 +263,9 @@ fn clean_input(s: &str) -> String {
                 ret.push_str(&doc_comment);
                 after
             }
-            BlockKind::DocComment((before, comment, after)) => {
+            BlockKind::DocComment((before, doc_comment, after)) => {
                 ret.push_str(&transform_code(&before));
-                for _ in 0..comment.split('\n').count() - 1 {
+                for _ in 0..doc_comment.split('\n').count() - 1 {
                     ret.push_str(" \n ");
                 }
                 after
