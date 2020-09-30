@@ -1569,3 +1569,23 @@ fn test16_strip_ignore() {
     }
     compare_files(BASIC16, &temp_dir.path().join(test_file));
 }
+
+// This test ensure we don't have an infinite loop in "strip::find_one_of".
+const BASIC17: &str = r#"
+pub const MIME_TYPE_JPEG: &str = "image/jpeg";
+pub const MIME_TYPE_PNG: &str = "image/png";
+pub const MIME_TYPE_JP2: &str = "image/jp2";
+pub const MIME_TYPE_URI: &str = "text/x-uri";"#;
+
+#[allow(unused_must_use)]
+#[test]
+fn test17_strip_ignore() {
+    let test_file = "basic17-strip.rs";
+    let comment_file = "basic17-strip.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, test_file, BASIC17);
+    {
+        let mut f = gen_file(&temp_dir, comment_file, "");
+        stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, true);
+    }
+}
