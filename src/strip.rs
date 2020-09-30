@@ -224,7 +224,7 @@ fn find_one_of<'a>(comments: &[&str], doc_comments: &[&str], text: &'a str) -> B
             }
         }
         if pos + 1 < tmp_text.len() {
-            tmp_text = &text[pos + 1..];
+            tmp_text = &tmp_text[pos + 1..];
         } else {
             break;
         }
