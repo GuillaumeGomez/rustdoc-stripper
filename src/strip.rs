@@ -31,13 +31,16 @@ fn move_to(words: &[&str], it: &mut usize, limit: &str, line: &mut usize, start_
         return;
     }
     *it += 1;
-    while *it < words.len() && !words[*it].contains(limit) {
-        if words[*it] == "\n" {
+    while let Some(&word) = words.get(*it) {
+        if words[*it].contains(limit) {
+            break;
+        }
+        if word == "\n" {
             *line += 1;
         }
         *it += 1;
     }
-    if *it < words.len() && words[*it] == "\n" {
+    if let Some(&"\n") = words.get(*it) {
         *line += 1;
     }
 }
@@ -139,7 +142,7 @@ fn get_three_parts<'a>(
         let extra = if stop != "\n" { stop.len() } else { 0 };
         (
             before.to_owned(),
-            format!("{} {}", comment_sign, &after[0..pos]),
+            format!("{} {}", comment_sign, &after[..pos]),
             &after[pos + extra..],
         )
     } else {
@@ -189,16 +192,16 @@ fn find_one_of<'a>(comments: &[&str], doc_comments: &[&str], text: &'a str) -> B
             if tmp_text.starts_with(com) {
                 if &com[1..2] == "*" {
                     return BlockKind::DocComment(get_three_parts(
-                        &text[0..last_pos],
+                        &text[..last_pos],
                         com,
-                        &text[last_pos + com.len()..],
+                        &tmp_text[com.len()..],
                         "*/",
                     ));
                 } else {
                     return BlockKind::DocComment(get_three_parts(
-                        &text[0..last_pos],
+                        &text[..last_pos],
                         com,
-                        &text[last_pos + com.len()..],
+                        &tmp_text[com.len()..],
                         "\n",
                     ));
                 }
@@ -210,21 +213,22 @@ fn find_one_of<'a>(comments: &[&str], doc_comments: &[&str], text: &'a str) -> B
                     return BlockKind::Comment(get_three_parts(
                         &text[0..last_pos],
                         "",
-                        &text[last_pos..],
+                        &tmp_text,
                         "*/",
                     ));
                 } else {
                     return BlockKind::Comment(get_three_parts(
                         &text[0..last_pos],
                         "",
-                        &text[last_pos..],
+                        &tmp_text,
                         "\n",
                     ));
                 }
             }
         }
-        if pos + 1 < tmp_text.len() {
-            tmp_text = &tmp_text[pos + 1..];
+        if !tmp_text.is_empty() {
+            tmp_text = &tmp_text[1..];
+            last_pos += 1;
         } else {
             break;
         }
@@ -243,6 +247,7 @@ fn transform_code(code: &str) -> String {
         .replace("!  {", " !? {")
         .replace(",", ", ")
         .replace("(", " (")
+        .replace("\"", " \"")
 }
 
 // Replaces lines that should be removed (doc comments mostly) with empty lines to keep a working
@@ -661,13 +666,13 @@ pub fn strip_comments<F: Write>(
 
                         it += 1;
                         while it < parse_result.event_list.len()
-                            && match parse_result.event_list[it].event {
-                                EventType::Comment(ref c) => {
+                            && match &parse_result.event_list[it].event {
+                                &EventType::Comment(ref c) => {
                                     comments.push_str(&format!("{}\n", c));
                                     true
                                 }
-                                EventType::Type(_) => false,
-                                _ => panic!("Doc comments cannot be written everywhere"),
+                                &EventType::Type(_) => false,
+                                _ => panic!("[{}:{}]: Doc comments cannot be written everywhere:\n---> {:#?}", full_path.display(), parse_result.event_list[it].line, parse_result.event_list),
                             }
                         {
                             it += 1;
