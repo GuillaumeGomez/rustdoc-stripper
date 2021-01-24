@@ -1692,7 +1692,6 @@ macro_rules! resources_register_include {
 }
 "#;
 
-
 const BASIC18_STRIPPED: &str = r#"
 // Take a look at the license at the top of the repository in the LICENSE file.
 
