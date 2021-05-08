@@ -1,9 +1,0 @@
-language: rust
-rust:
-- nightly
-- beta
-- stable
-script:
-  - rustc --version
-  - RUST_BACKTRACE=1 cargo build
-  - RUST_BACKTRACE=1 cargo test
