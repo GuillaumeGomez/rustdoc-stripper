@@ -81,30 +81,8 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           override: true
           profile: minimal
-          components: rustfmt, clippy
         id: toolchain
-      - name: Cache cargo registry
-        uses: actions/cache@v1
-        with:
-          path: ~/.cargo/registry
-          key: checks-${{ runner.os }}-cargo-registry-trimmed
-      - name: Cache cargo git trees
-        uses: actions/cache@v1
-        with:
-          path: ~/.cargo/git
-          key: checks-${{ runner.os }}-cargo-gits-trimmed
-      - name: Cache cargo build
-        uses: actions/cache@v1
-        with:
-          path: target
-          key: checks-${{ runner.os }}-cargo-target-dir-${{ steps.toolchain.outputs.rustc_hash }}
-      - name: "Set backtraces on"
-        run: echo "::set-env name=RUST_BACKTRACE::1"
       - name: "Run build"
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
+        run: RUST_BACKTRACE=1 cargo build
       - name: "Run tests"
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
+        run: RUST_BACKTRACE=1 cargo test
