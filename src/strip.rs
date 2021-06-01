@@ -95,21 +95,14 @@ pub fn add_to_type_scope(
                 Some(tmp)
             }
         },
-        None => match *e {
-            Some(ref t) => Some(t.clone()),
-            _ => None,
-        },
+        None => e.as_ref().cloned(),
     }
 }
 
 pub fn type_out_scope(current: &Option<TypeStruct>) -> Option<TypeStruct> {
-    match *current {
-        Some(ref c) => match c.parent {
-            Some(ref p) => Some(p.deref().clone()),
-            None => None,
-        },
-        None => None,
-    }
+    current
+        .as_ref()
+        .and_then(|c| c.parent.as_ref().map(|p| p.deref().clone()))
 }
 
 fn get_mod(current: &Option<TypeStruct>) -> bool {
@@ -189,19 +182,19 @@ fn find_one_of<'a>(comments: &[&str], doc_comments: &[&str], text: &'a str) -> B
         tmp_text = &tmp_text[pos..];
         last_pos += pos;
         for com in doc_comments {
-            if tmp_text.starts_with(com) {
+            if let Some(after) = tmp_text.strip_prefix(com) {
                 if &com[1..2] == "*" {
                     return BlockKind::DocComment(get_three_parts(
                         &text[..last_pos],
                         com,
-                        &tmp_text[com.len()..],
+                        after,
                         "*/",
                     ));
                 } else {
                     return BlockKind::DocComment(get_three_parts(
                         &text[..last_pos],
                         com,
-                        &tmp_text[com.len()..],
+                        after,
                         "\n",
                     ));
                 }
@@ -299,10 +292,7 @@ fn clear_events(mut events: Vec<EventInfo>) -> Vec<EventInfo> {
                     waiting_type = Some(t.clone());
                     false
                 } else if let Some(ref parent) = current {
-                    match parent.ty {
-                        Type::Struct | Type::Enum => false,
-                        _ => true,
-                    }
+                    !matches!(parent.ty, Type::Struct | Type::Enum)
                 } else {
                     true
                 }
@@ -666,12 +656,12 @@ pub fn strip_comments<F: Write>(
 
                         it += 1;
                         while it < parse_result.event_list.len()
-                            && match &parse_result.event_list[it].event {
-                                &EventType::Comment(ref c) => {
+                            && match parse_result.event_list[it].event {
+                                EventType::Comment(ref c) => {
                                     comments.push_str(&format!("{}\n", c));
                                     true
                                 }
-                                &EventType::Type(_) => false,
+                                EventType::Type(_) => false,
                                 _ => panic!("[{}:{}]: Doc comments cannot be written everywhere:\n---> {:#?}", full_path.display(), parse_result.event_list[it].line, parse_result.event_list),
                             }
                         {

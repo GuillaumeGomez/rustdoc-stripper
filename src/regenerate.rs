@@ -217,10 +217,10 @@ pub fn regenerate_comments(
 fn check_if_regen(it: usize, parse_result: &ParseResult, ignore_doc_commented: bool) -> bool {
     ignore_doc_commented
         && it > 0
-        && match parse_result.event_list[it - 1].event {
-            EventType::Comment(_) | EventType::FileComment(_) => true,
-            _ => false,
-        }
+        && matches!(
+            parse_result.event_list[it - 1].event,
+            EventType::Comment(_) | EventType::FileComment(_)
+        )
 }
 
 fn do_regenerate(
@@ -475,11 +475,7 @@ fn sub_erase_macro_path(ty: Option<Box<TypeStruct>>, is_parent: bool) -> Option<
 }
 
 fn erase_macro_path(ty: Option<TypeStruct>) -> Option<TypeStruct> {
-    if let Some(t) = ty {
-        Some(*sub_erase_macro_path(Some(Box::new(t)), false).unwrap())
-    } else {
-        None
-    }
+    ty.map(|t| *sub_erase_macro_path(Some(Box::new(t)), false).unwrap())
 }
 
 pub fn parse_cmts<S, I>(lines: I, ignore_macros: bool) -> Infos
@@ -502,12 +498,12 @@ where
     // The "*" entries are to be applied regardless of file name
     #[allow(clippy::option_option)]
     fn line_file(line: &str) -> Option<Option<String>> {
-        if line.starts_with(FILE) {
-            let name = &line[FILE.len()..].replace(END_INFO, "");
+        if let Some(after) = line.strip_prefix(FILE) {
+            let name = after.replace(END_INFO, "");
             if name == "*" {
                 Some(None)
             } else {
-                Some(Some(name.to_owned()))
+                Some(Some(name))
             }
         } else {
             None
