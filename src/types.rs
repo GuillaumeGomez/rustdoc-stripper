@@ -183,10 +183,7 @@ pub enum Type {
 
 impl Type {
     pub fn is_macro_definition(self) -> bool {
-        match self {
-            Type::MacroDefinition => true,
-            _ => false,
-        }
+        matches!(self, Type::MacroDefinition)
     }
 }
 
