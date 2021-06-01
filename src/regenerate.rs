@@ -528,7 +528,7 @@ where
                         comments: vec![],
                     }
                 } else {
-                    panic!("Unrecognized format");
+                    panic!("Unrecognized format on line: `{}`", line.deref());
                 }
             }
             State::File {
