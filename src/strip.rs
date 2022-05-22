@@ -206,14 +206,14 @@ fn find_one_of<'a>(comments: &[&str], doc_comments: &[&str], text: &'a str) -> B
                     return BlockKind::Comment(get_three_parts(
                         &text[0..last_pos],
                         "",
-                        &tmp_text,
+                        tmp_text,
                         "*/",
                     ));
                 } else {
                     return BlockKind::Comment(get_three_parts(
                         &text[0..last_pos],
                         "",
-                        &tmp_text,
+                        tmp_text,
                         "\n",
                     ));
                 }
@@ -230,17 +230,17 @@ fn find_one_of<'a>(comments: &[&str], doc_comments: &[&str], text: &'a str) -> B
 }
 
 fn transform_code(code: &str) -> String {
-    code.replace("{", " { ")
-        .replace("}", " } ")
-        .replace(":", " : ")
+    code.replace('{', " { ")
+        .replace('}', " } ")
+        .replace(':', " : ")
         .replace(" :  : ", "::")
         .replace("*/", " */")
-        .replace("\n", " \n ")
+        .replace('\n', " \n ")
         .replace("!(", " !! (")
         .replace("!  {", " !? {")
-        .replace(",", ", ")
-        .replace("(", " (")
-        .replace("\"", " \"")
+        .replace(',', ", ")
+        .replace('(', " (")
+        .replace('\"', " \"")
 }
 
 // Replaces lines that should be removed (doc comments mostly) with empty lines to keep a working
@@ -340,17 +340,17 @@ fn build_event_inner(
     let mut waiting_for_macro = false;
     while *it < words.len() {
         match words[*it] {
-            c if c.starts_with('\"') => move_to(&words, it, "\"", line, "\""),
-            c if c.starts_with("b\"") => move_to(&words, it, "\"", line, "b\""),
+            c if c.starts_with('\"') => move_to(words, it, "\"", line, "\""),
+            c if c.starts_with("b\"") => move_to(words, it, "\"", line, "b\""),
             // c if c.starts_with("'") => move_to(&words, it, "'", line),
             c if c.starts_with("r#") => {
                 let end = c
                     .split("#\"")
                     .next()
                     .unwrap()
-                    .replace("\"", "")
-                    .replace("r", "");
-                move_to(&words, it, &format!("\"{}", end), line, "r#");
+                    .replace('\"', "")
+                    .replace('r', "");
+                move_to(words, it, &format!("\"{}", end), line, "r#");
             }
             "///" | "///\n" => {
                 comment_lines.push(*line);
@@ -358,7 +358,7 @@ fn build_event_inner(
                     *line,
                     EventType::Comment(b_content[*line].to_owned()),
                 ));
-                move_to(&words, it, "\n", line, "");
+                move_to(words, it, "\n", line, "");
             }
             "//!" | "//!\n" => {
                 comment_lines.push(*line);
@@ -369,11 +369,11 @@ fn build_event_inner(
                 if *line + 1 < b_content.len() && b_content[*line + 1].is_empty() {
                     comment_lines.push(*line + 1);
                 }
-                move_to(&words, it, "\n", line, "");
+                move_to(words, it, "\n", line, "");
             }
             "/*!" | "/*!\n" => {
                 let mark = *line;
-                move_until(&words, it, "*/", line);
+                move_until(words, it, "*/", line);
                 for (pos, s) in b_content.iter().enumerate().take(*line).skip(mark) {
                     comment_lines.push(pos);
                     event_list.push(EventInfo::new(*line, EventType::FileComment(s.to_owned())));
@@ -394,7 +394,7 @@ fn build_event_inner(
             }
             "/**" | "/**\n" => {
                 let mark = *line;
-                move_until(&words, it, "*/", line);
+                move_until(words, it, "*/", line);
                 for (pos, s) in b_content.iter().enumerate().take(*line).skip(mark) {
                     comment_lines.push(pos);
                     event_list.push(EventInfo::new(*line, EventType::Comment(s.to_owned())));
@@ -418,8 +418,8 @@ fn build_event_inner(
                 let ty = words[*it];
 
                 if *line + 1 < b_content.len() && b_content[*line].ends_with("::{") {
-                    move_to(&words, it, "\n", line, "");
-                    name.push_str(&b_content[*line + 1].trim());
+                    move_to(words, it, "\n", line, "");
+                    name.push_str(b_content[*line + 1].trim());
                 }
                 event_list.push(EventInfo::new(
                     *line,
@@ -465,7 +465,7 @@ fn build_event_inner(
                     *line,
                     EventType::Type(TypeStruct::new(
                         Type::Impl,
-                        &join(&get_impl(&words, it, line), " "),
+                        &join(&get_impl(words, it, line), " "),
                     )),
                 ));
             }
@@ -474,7 +474,7 @@ fn build_event_inner(
                     *line,
                     EventType::Type(TypeStruct::new(
                         Type::Impl,
-                        &join(&get_impl(&words, it, line), " "),
+                        &join(&get_impl(words, it, line), " "),
                     )),
                 ));
             }
@@ -487,10 +487,10 @@ fn build_event_inner(
                     build_event_inner(
                         it,
                         line,
-                        &words,
+                        words,
                         &mut vec![],
                         &mut vec![],
-                        &b_content,
+                        b_content,
                         Some(1),
                     );
                     waiting_for_macro = false;
@@ -639,7 +639,8 @@ pub fn strip_comments<F: Write>(
                             .get(it)
                             .map(|x| match x.event {
                                 EventType::FileComment(ref c) => {
-                                    comments.push_str(&format!("{}\n", unformat_comment(c)));
+                                    use std::fmt::Write;
+                                    writeln!(comments, "{}", c).unwrap();
                                     true
                                 }
                                 _ => false,
@@ -658,7 +659,8 @@ pub fn strip_comments<F: Write>(
                         while it < parse_result.event_list.len()
                             && match parse_result.event_list[it].event {
                                 EventType::Comment(ref c) => {
-                                    comments.push_str(&format!("{}\n", c));
+                                    use std::fmt::Write;
+                                    writeln!(comments, "{}", c).unwrap();
                                     true
                                 }
                                 EventType::Type(_) => false,

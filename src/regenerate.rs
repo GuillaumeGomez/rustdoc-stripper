@@ -71,7 +71,7 @@ fn regenerate_comment(
             &read_indent,
             if is_file_comment { "//!" } else { "///" },
             if is_empty { "" } else { " " },
-            if is_empty { "" } else { &comment }
+            if is_empty { "" } else { comment }
         ),
     );
     if need_to_add_ignore_next_comment_stop {
@@ -157,7 +157,7 @@ fn get_corresponding_type(
                     file_comment,
                     line + *decal,
                     depth + 1,
-                    &comment,
+                    comment,
                     original_content,
                     first,
                 ) {
@@ -288,7 +288,7 @@ fn do_regenerate(
 
                     if !check_if_regen(it, parse_result, ignore_doc_commented) {
                         if let Some(l) = get_corresponding_type(
-                            &elements,
+                            elements,
                             &tmp,
                             parse_result.event_list[it].line,
                             &mut decal,
@@ -312,7 +312,7 @@ fn do_regenerate(
 
                         if !check_if_regen(it, parse_result, ignore_doc_commented) {
                             if let Some(l) = get_corresponding_type(
-                                &elements,
+                                elements,
                                 &cc,
                                 parse_result.event_list[it].line,
                                 &mut decal,
@@ -448,7 +448,7 @@ pub fn regenerate_doc_comments(
     loop_over_files(
         directory.as_ref(),
         &mut |w, s| regenerate_comments(w, s, &mut infos, ignore_macros, ignore_doc_commented),
-        &ignores,
+        ignores,
         verbose,
     );
     save_remainings(&infos, comment_file);
