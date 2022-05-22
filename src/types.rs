@@ -162,7 +162,7 @@ impl Display for TypeStruct {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Type {
     Struct,
     Mod,
