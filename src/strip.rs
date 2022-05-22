@@ -640,7 +640,7 @@ pub fn strip_comments<F: Write>(
                             .map(|x| match x.event {
                                 EventType::FileComment(ref c) => {
                                     use std::fmt::Write;
-                                    writeln!(comments, "{}", c).unwrap();
+                                    writeln!(comments, "{}", unformat_comment(c)).unwrap();
                                     true
                                 }
                                 _ => false,
