@@ -145,7 +145,7 @@ fn test_regeneration() {
     stripper_lib::regenerate_doc_comments(
         temp_dir.path().to_str().unwrap(),
         false,
-        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        temp_dir.path().join(comment_file).to_str().unwrap(),
         false,
         false,
     );
@@ -376,7 +376,7 @@ fn test2_regeneration() {
     stripper_lib::regenerate_doc_comments(
         temp_dir.path().to_str().unwrap(),
         false,
-        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        temp_dir.path().join(comment_file).to_str().unwrap(),
         true,
         false,
     );
@@ -433,7 +433,7 @@ fn test3_regeneration() {
     stripper_lib::regenerate_doc_comments(
         temp_dir.path().to_str().unwrap(),
         false,
-        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        temp_dir.path().join(comment_file).to_str().unwrap(),
         false,
         false,
     );
@@ -510,7 +510,7 @@ fn test4_regeneration() {
     stripper_lib::regenerate_doc_comments(
         temp_dir.path().to_str().unwrap(),
         false,
-        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        temp_dir.path().join(comment_file).to_str().unwrap(),
         false,
         false,
     );
@@ -575,7 +575,7 @@ fn test5_regeneration() {
     stripper_lib::regenerate_doc_comments(
         temp_dir.path().to_str().unwrap(),
         false,
-        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        temp_dir.path().join(comment_file).to_str().unwrap(),
         false,
         false,
     );
@@ -631,7 +631,7 @@ fn test6_regeneration() {
     stripper_lib::regenerate_doc_comments(
         temp_dir.path().to_str().unwrap(),
         false,
-        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        temp_dir.path().join(comment_file).to_str().unwrap(),
         false,
         true,
     );
@@ -666,7 +666,7 @@ fn test7_regeneration() {
     stripper_lib::regenerate_doc_comments(
         temp_dir.path().to_str().unwrap(),
         false,
-        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        temp_dir.path().join(comment_file).to_str().unwrap(),
         false,
         true,
     );
@@ -738,7 +738,7 @@ fn test8_regeneration() {
     stripper_lib::regenerate_doc_comments(
         temp_dir.path().to_str().unwrap(),
         false,
-        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        temp_dir.path().join(comment_file).to_str().unwrap(),
         false,
         true,
     );
@@ -797,7 +797,7 @@ fn test9_regeneration() {
     stripper_lib::regenerate_doc_comments(
         temp_dir.path().to_str().unwrap(),
         false,
-        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        temp_dir.path().join(comment_file).to_str().unwrap(),
         false,
         true,
     );
@@ -987,7 +987,7 @@ fn test10_regeneration() {
     stripper_lib::regenerate_doc_comments(
         temp_dir.path().to_str().unwrap(),
         false,
-        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        temp_dir.path().join(comment_file).to_str().unwrap(),
         true,
         false,
     );
@@ -1005,7 +1005,7 @@ fn test10_regeneration2() {
     stripper_lib::regenerate_doc_comments(
         temp_dir.path().to_str().unwrap(),
         false,
-        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        temp_dir.path().join(comment_file).to_str().unwrap(),
         false,
         true,
     );
@@ -1023,7 +1023,7 @@ fn test10_regeneration3() {
     stripper_lib::regenerate_doc_comments(
         temp_dir.path().to_str().unwrap(),
         false,
-        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        temp_dir.path().join(comment_file).to_str().unwrap(),
         false,
         false,
     );
@@ -1041,7 +1041,7 @@ fn test10_regeneration4() {
     stripper_lib::regenerate_doc_comments(
         temp_dir.path().to_str().unwrap(),
         false,
-        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        temp_dir.path().join(comment_file).to_str().unwrap(),
         true,
         true,
     );
@@ -1209,7 +1209,7 @@ fn test11_regeneration() {
     stripper_lib::regenerate_doc_comments(
         temp_dir.path().to_str().unwrap(),
         false,
-        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        temp_dir.path().join(comment_file).to_str().unwrap(),
         true,
         false,
     );
@@ -1349,7 +1349,7 @@ fn test13_regeneration() {
     stripper_lib::regenerate_doc_comments(
         temp_dir.path().to_str().unwrap(),
         false,
-        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        temp_dir.path().join(comment_file).to_str().unwrap(),
         false,
         false,
     );
@@ -1427,7 +1427,7 @@ fn test14_regeneration_enum() {
     stripper_lib::regenerate_doc_comments(
         temp_dir.path().to_str().unwrap(),
         false,
-        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        temp_dir.path().join(comment_file).to_str().unwrap(),
         true,
         false,
     );
@@ -1511,7 +1511,7 @@ fn test15_regeneration_ignore() {
     stripper_lib::regenerate_doc_comments(
         temp_dir.path().to_str().unwrap(),
         false,
-        &temp_dir.path().join(comment_file).to_str().unwrap(),
+        temp_dir.path().join(comment_file).to_str().unwrap(),
         true,
         false,
     );

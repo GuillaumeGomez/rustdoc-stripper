@@ -240,7 +240,7 @@ fn transform_code(code: &str) -> String {
         .replace("!  {", " !? {")
         .replace(',', ", ")
         .replace('(', " (")
-        .replace('\"', " \"")
+        .replace('"', " \"")
 }
 
 // Replaces lines that should be removed (doc comments mostly) with empty lines to keep a working
@@ -340,7 +340,7 @@ fn build_event_inner(
     let mut waiting_for_macro = false;
     while *it < words.len() {
         match words[*it] {
-            c if c.starts_with('\"') => move_to(words, it, "\"", line, "\""),
+            c if c.starts_with('"') => move_to(words, it, "\"", line, "\""),
             c if c.starts_with("b\"") => move_to(words, it, "\"", line, "b\""),
             // c if c.starts_with("'") => move_to(&words, it, "'", line),
             c if c.starts_with("r#") => {
@@ -348,7 +348,7 @@ fn build_event_inner(
                     .split("#\"")
                     .next()
                     .unwrap()
-                    .replace('\"', "")
+                    .replace('"', "")
                     .replace('r', "");
                 move_to(words, it, &format!("\"{}", end), line, "r#");
             }
@@ -640,7 +640,7 @@ pub fn strip_comments<F: Write>(
                             .map(|x| match x.event {
                                 EventType::FileComment(ref c) => {
                                     use std::fmt::Write;
-                                    writeln!(comments, "{}", c).unwrap();
+                                    writeln!(comments, "{}", unformat_comment(c)).unwrap();
                                     true
                                 }
                                 _ => false,
