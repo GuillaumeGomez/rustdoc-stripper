@@ -19,7 +19,7 @@ use clap::{AppSettings, CommandFactory, Parser};
 #[derive(Parser)]
 #[clap(
     global_setting(AppSettings::NoAutoVersion),
-    bin_name = "cargo stripper",
+    bin_name = "cargo doc-stripper",
     about = "This utility extract/regenerate doc comments into source code."
 )]
 pub struct Opts {
@@ -47,6 +47,11 @@ pub struct Opts {
     /// Specify path to Cargo.toml
     #[clap(long = "manifest-path", value_name = "manifest-path")]
     manifest_path: Option<String>,
+
+    /// Options passed to rustfmt
+    // 'raw = true' to make `--` explicit.
+    #[clap(name = "doc_stripper_options", raw(true))]
+    doc_stripper_options: Vec<String>,
 
     /// Format all packages, and also their local path-based dependencies
     #[clap(long = "all")]
@@ -112,11 +117,11 @@ fn execute() -> i32 {
         handle_command_status(run_doc_stripper(
             verbosity,
             &strategy,
-            &args,
+            &opts.doc_stripper_options,
             Some(&manifest_path),
         ))
     } else {
-        handle_command_status(run_doc_stripper(verbosity, &strategy, &args, None))
+        handle_command_status(run_doc_stripper(verbosity, &strategy, &opts.doc_stripper_options, None))
     }
 }
 
@@ -410,7 +415,9 @@ fn run_doc_stripper(
 
         let mut command = doc_stripper_command()
             .stdout(stdout)
-            .args(&target.path)
+            .arg("-o")
+            .arg(format!("{}.md", target.path.file_stem().and_then(|s| s.to_str()).unwrap()))
+            .arg(target.path)
             .args(args)
             .spawn()
             .map_err(|e| match e.kind() {
