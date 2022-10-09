@@ -13,7 +13,7 @@ extern crate rustc_span;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::fs;
+use std::fs::{self, read_to_string, OpenOptions};
 use std::io::prelude::*;
 use std::io::{self, Read, Write};
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -73,25 +73,13 @@ impl Position {
     }
 }
 
-#[derive(Debug)]
-struct Comment {
-    /// Position in bytes from the start of the file.
-    position: Position,
-}
-
-impl Comment {
-    fn new(position: Position) -> Self {
-        Self { position }
-    }
-}
-
 struct DocCommentVisitor<'a, 'b, F> {
     current_path: Vec<&'static str>,
     sess: &'a ParseSess,
     previous_span: HashMap<FileName, Span>,
     /// Key is the file name and the value is a vector of `Span` (where the doc comment starts and
     /// ends) and the "path" of the item (ie `a::b::c`).
-    doc_comments: HashMap<FileName, Vec<Comment>>,
+    doc_comments: HashMap<FileName, Vec<Position>>,
     out_file: &'b mut F,
 }
 
@@ -133,8 +121,29 @@ impl<'a, 'b, F: Write> DocCommentVisitor<'a, 'b, F> {
         }
     }
 
-    fn strip_files(&self) -> Result<(), String> {
-        // FIXME: todo
+    fn strip_files(&mut self) -> Result<(), String> {
+        for (file_name, positions) in self.doc_comments.iter_mut() {
+            if positions.is_empty() || !file_name.is_real() {
+                continue;
+            }
+            positions.sort_unstable();
+            let file_name = file_name.prefer_local().to_string_lossy().into_owned();
+            let text = read_to_string(&file_name).map_err(|e| format!("failed to read"))?;
+            let mut text = text.as_str();
+            let mut current_pos = 0;
+            let mut file = OpenOptions::new()
+                .write(true)
+                .truncate(true)
+                .open(&file_name)
+                .map_err(|e| format!("failed to open file"))?;
+            for pos in positions {
+                let (before, after) = text.split_at(pos.position - current_pos);
+                current_pos = pos.position + pos.len;
+                file.write(before.as_bytes());
+                text = &after[pos.len..];
+            }
+            file.write(text.as_bytes());
+        }
         Ok(())
     }
 
@@ -164,14 +173,13 @@ impl<'a, 'b, F: Write> DocCommentVisitor<'a, 'b, F> {
         .expect("write failed");
         // We create the position in the file.
         let pos = Position::new(span.lo() - loc.file.start_pos, span.hi() - span.lo());
-        let comment = Comment::new(pos);
         match self.doc_comments.entry(loc.file.name.clone()) {
             Entry::Occupied(mut e) => {
-                e.get_mut().push(comment);
+                e.get_mut().push(pos);
             }
             Entry::Vacant(e) => {
                 let mut v = Vec::with_capacity(100);
-                v.push(comment);
+                v.push(pos);
                 e.insert(v);
             }
         }
