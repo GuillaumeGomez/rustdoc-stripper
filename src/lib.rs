@@ -20,7 +20,7 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use rustc_ast::ast::{AttrKind, Crate, Item, ItemKind};
+use rustc_ast::ast::{AttrKind, AttrStyle, Attribute, Crate, Item, ItemKind};
 use rustc_ast::visit::{walk_crate, walk_item, Visitor};
 use rustc_data_structures::sync::{Lrc, Send};
 use rustc_errors::emitter::{Emitter, EmitterWriter};
@@ -51,7 +51,9 @@ pub fn strip_comments<F: Write>(
         let mut parser = create_parser(&path, &parser_session)?;
         let krate = parse_crate(&mut parser)?;
 
-        walk_crate(&mut DocCommentVisitor::new(&parser_session), &krate);
+        let mut visitor = DocCommentVisitor::new(&parser_session, out_file);
+        walk_crate(&mut visitor, &krate);
+        visitor.strip_files();
         Ok(())
     })
 }
@@ -71,45 +73,105 @@ impl Position {
     }
 }
 
-struct DocCommentVisitor<'a> {
+#[derive(Debug)]
+struct Comment {
+    /// Position in bytes from the start of the file.
+    position: Position,
+}
+
+impl Comment {
+    fn new(position: Position) -> Self {
+        Self { position }
+    }
+}
+
+struct DocCommentVisitor<'a, 'b, F> {
     current_path: Vec<&'static str>,
     sess: &'a ParseSess,
     previous_span: HashMap<FileName, Span>,
     /// Key is the file name and the value is a vector of `Span` (where the doc comment starts and
     /// ends) and the "path" of the item (ie `a::b::c`).
-    doc_comments: HashMap<FileName, Vec<(Position, String)>>,
+    doc_comments: HashMap<FileName, Vec<Comment>>,
+    out_file: &'b mut F,
 }
 
-impl<'a> Drop for DocCommentVisitor<'a> {
+impl<'a, 'b, F> Drop for DocCommentVisitor<'a, 'b, F> {
     fn drop(&mut self) {
         eprintln!("==> {:?}", self.doc_comments);
     }
 }
 
-impl<'a> DocCommentVisitor<'a> {
-    fn new(sess: &'a ParseSess) -> Self {
+fn write_kind_if_needed<F: Write>(
+    out_file: &mut F,
+    attr: &Attribute,
+    is_inner: &mut Option<bool>,
+    is_normal: &mut Option<bool>,
+) {
+    let attr_is_normal = !attr.is_doc_comment();
+    let attr_is_inner = attr.style == AttrStyle::Inner;
+    if Some(attr_is_inner) != *is_inner || Some(attr_is_normal) != *is_normal {
+        writeln!(
+            out_file,
+            "<!-- :style:{}:kind:{}: -->",
+            if attr_is_inner { "inner" } else { "outer" },
+            if attr_is_normal { "doc" } else { "attr" },
+        )
+        .expect("write failed");
+        *is_normal = Some(attr_is_normal);
+        *is_inner = Some(attr_is_inner);
+    }
+}
+
+impl<'a, 'b, F: Write> DocCommentVisitor<'a, 'b, F> {
+    fn new(sess: &'a ParseSess, out_file: &'b mut F) -> Self {
         Self {
             doc_comments: HashMap::with_capacity(10),
             current_path: Vec::with_capacity(10),
             previous_span: HashMap::with_capacity(10),
             sess,
+            out_file,
         }
     }
 
-    fn add_if_local(&mut self, span: Span, item_path: String) {
+    fn strip_files(&self) -> Result<(), String> {
+        // FIXME: todo
+        Ok(())
+    }
+
+    fn add_if_local(
+        &mut self,
+        attr: &Attribute,
+        item_path: String,
+        is_inner: &mut Option<bool>,
+        is_normal: &mut Option<bool>,
+        is_first: &mut bool,
+    ) {
+        let span = attr.span;
         let loc = self.sess.source_map().lookup_char_pos(span.lo());
         if loc.file.cnum != LOCAL_CRATE {
             return;
         }
+        if *is_first {
+            *is_first = false;
+            writeln!(self.out_file, "<!-- :path:{}: -->", item_path).expect("write failed");
+        }
+        write_kind_if_needed(self.out_file, attr, is_inner, is_normal);
+        writeln!(
+            self.out_file,
+            "{}",
+            attr.doc_str().expect("doc_str returned None")
+        )
+        .expect("write failed");
         // We create the position in the file.
         let pos = Position::new(span.lo() - loc.file.start_pos, span.hi() - span.lo());
+        let comment = Comment::new(pos);
         match self.doc_comments.entry(loc.file.name.clone()) {
             Entry::Occupied(mut e) => {
-                e.get_mut().push((pos, item_path));
+                e.get_mut().push(comment);
             }
             Entry::Vacant(e) => {
                 let mut v = Vec::with_capacity(100);
-                v.push((pos, item_path));
+                v.push(comment);
                 e.insert(v);
             }
         }
@@ -176,13 +238,19 @@ impl<'a> DocCommentVisitor<'a> {
         let mut ignore_next =
             self.get_ignore_next(false, self.get_previous_span_for_file(i.span), i.span);
         let mut attrs = i.attrs.iter().peekable();
+        let mut is_inner = None;
+        let mut is_normal = None;
+        let mut is_first = true;
 
         while let Some(attr) = attrs.next() {
             if !ignore_next && attr.doc_str().is_some() {
                 self.add_if_local(
-                    attr.span,
+                    attr,
                     path.get_or_insert_with(|| self.current_path.join("::"))
                         .clone(),
+                    &mut is_inner,
+                    &mut is_normal,
+                    &mut is_first,
                 );
             }
             if let Some(next_attr) = attrs.peek() {
@@ -192,7 +260,7 @@ impl<'a> DocCommentVisitor<'a> {
     }
 }
 
-impl<'a> Visitor<'a> for DocCommentVisitor<'a> {
+impl<'a, 'b, F: Write> Visitor<'a> for DocCommentVisitor<'a, 'b, F> {
     fn visit_item(&mut self, i: &'a Item) {
         let ident: &'static str = unsafe { std::mem::transmute(i.ident.as_str()) };
         if !ident.is_empty() {
@@ -203,7 +271,7 @@ impl<'a> Visitor<'a> for DocCommentVisitor<'a> {
         walk_item(self, i);
         if !ident.is_empty() {
             self.current_path.pop();
-            eprintln!("leving <=== {:?}", ident);
+            eprintln!("leaving <=== {:?}", ident);
         }
     }
 }
