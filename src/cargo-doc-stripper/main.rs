@@ -76,14 +76,16 @@ const FAILURE: i32 = 1;
 fn execute() -> i32 {
     // Drop extra `doc-stripper` argument provided by `cargo`.
     let mut found_doc_stripper = false;
-    let args = env::args().filter(|x| {
-        if found_doc_stripper {
-            true
-        } else {
-            found_doc_stripper = x == "doc-stripper";
-            x != "doc-stripper"
-        }
-    }).collect::<Vec<_>>();
+    let args = env::args()
+        .filter(|x| {
+            if found_doc_stripper {
+                true
+            } else {
+                found_doc_stripper = x == "doc-stripper";
+                x != "doc-stripper"
+            }
+        })
+        .collect::<Vec<_>>();
 
     let opts = Opts::parse_from(&args);
 
@@ -121,7 +123,12 @@ fn execute() -> i32 {
             Some(&manifest_path),
         ))
     } else {
-        handle_command_status(run_doc_stripper(verbosity, &strategy, &opts.doc_stripper_options, None))
+        handle_command_status(run_doc_stripper(
+            verbosity,
+            &strategy,
+            &opts.doc_stripper_options,
+            None,
+        ))
     }
 }
 
@@ -416,7 +423,10 @@ fn run_doc_stripper(
         let mut command = doc_stripper_command()
             .stdout(stdout)
             .arg("-o")
-            .arg(format!("{}.md", target.path.file_stem().and_then(|s| s.to_str()).unwrap()))
+            .arg(format!(
+                "{}.md",
+                target.path.file_stem().and_then(|s| s.to_str()).unwrap()
+            ))
             .arg(target.path)
             .args(args)
             .spawn()
