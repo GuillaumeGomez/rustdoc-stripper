@@ -101,7 +101,17 @@ fn get_corresponding_type(
     while pos < elements.len() {
         if match elements[pos].0 {
             Some(ref a) => {
-                let ret = a == to_find;
+                // is true if a is a top level Type, or if is inside a macro and Type and name match
+                /* The result is that if there is a struct defined inside a macro,
+                   the documentation (if it has) of that struct will be written inside the macro. */
+                let ret = a == to_find || match &to_find.parent {
+                    Some(parent)
+                        if parent.ty == Type::Macro
+                            && a.name == to_find.name
+                            && a.ty == to_find.ty
+                            && a.args == to_find.args => true,
+                    _ => false
+                };
 
                 // to detect variants
                 if !ret
