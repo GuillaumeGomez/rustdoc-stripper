@@ -27,7 +27,7 @@ pub(crate) const IGNORE_NEXT_COMMENT: &str = "// rustdoc-stripper-ignore-next";
 pub(crate) const IGNORE_NEXT_COMMENT_STOP: &str = "// rustdoc-stripper-ignore-next-stop";
 
 fn move_to(words: &[&str], it: &mut usize, limit: &str, line: &mut usize, start_remove: &str) {
-    if words[*it][start_remove.len()..].contains(&limit) {
+    if words[*it][start_remove.len()..].contains(limit) {
         return;
     }
     *it += 1;
@@ -348,8 +348,7 @@ fn build_event_inner(
                     .split("#\"")
                     .next()
                     .unwrap()
-                    .replace('"', "")
-                    .replace('r', "");
+                    .replace(['"', 'r'], "");
                 move_to(words, it, &format!("\"{}", end), line, "r#");
             }
             "///" | "///\n" => {

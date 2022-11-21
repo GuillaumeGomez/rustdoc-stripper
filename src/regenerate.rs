@@ -151,9 +151,9 @@ fn get_corresponding_type(
                 }
             }
             let mut first = true;
-            for comment in (&elements[pos].1)
+            for comment in elements[pos].1
                 .iter()
-                .skip(if file_comment { 1 } else { 0 })
+                .skip(usize::from(file_comment))
             {
                 let depth = if let Some(ref e) = elements[pos].0 {
                     e.get_depth(ignore_macros)

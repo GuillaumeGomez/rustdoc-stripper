@@ -199,7 +199,7 @@ fn main() {
                     println!("Unknown option: '{}'", s);
                     return;
                 }
-                for c in (&s[1..]).chars() {
+                for c in s[1..].chars() {
                     match c {
                         's' | 'g' => {
                             if !check_options(&mut args, c) {
