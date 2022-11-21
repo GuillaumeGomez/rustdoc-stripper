@@ -21,7 +21,7 @@ use std::ops::Deref;
 use std::path::Path;
 use strip;
 use types::{EventType, ParseResult, Type, TypeStruct};
-use utils::{join, loop_over_files, write_comment, write_file};
+use utils::{join, loop_over_files, write_comment, write_file, remove_macro_parent};
 
 type Infos = HashMap<Option<String>, Vec<(Option<TypeStruct>, Vec<String>)>>;
 
@@ -104,13 +104,10 @@ fn get_corresponding_type(
                 // is true if a is a top level Type, or if is inside a macro and Type and name match
                 /* The result is that if there is a struct defined inside a macro,
                    the documentation (if it has) of that struct will be written inside the macro. */
-                let ret = a == to_find || match &to_find.parent {
-                    Some(parent)
-                        if parent.ty == Type::Macro
-                            && a.name == to_find.name
-                            && a.ty == to_find.ty
-                            && a.args == to_find.args => true,
-                    _ => false
+                let ret = a == to_find || {
+                    let mut tmp = to_find.clone();
+                    remove_macro_parent(&mut tmp);
+                    *a == tmp
                 };
 
                 // to detect variants

@@ -1829,19 +1829,26 @@ fn test18_strip_failure() {
 fn item_inside_macro() {
     static SRC_RS: &str = r###"
         glib::wrapper! {
-            pub struct BaseInfo(Boxed<ffi::GIBaseInfo>);
+            pub struct BaseInfo: u32 {
+                const READABLE = 5
+            };
         }
     "###;
     static DOCS_MD: &str = r###"<!-- file * -->
 <!-- struct BaseInfo -->
 GIBaseInfo is the common base struct of all other Info structs
 accessible through the [`Repository`][crate::Repository] API.
+<!-- struct BaseInfo::const READABLE -->
+This thing can be read.
 "###;
     static TARGET_RS: &str = r###"
         glib::wrapper! {
             /// GIBaseInfo is the common base struct of all other Info structs
             /// accessible through the [`Repository`][crate::Repository] API.
-            pub struct BaseInfo(Boxed<ffi::GIBaseInfo>);
+            pub struct BaseInfo: u32 {
+                /// This thing can be read.
+                const READABLE = 5
+            };
         }
     "###;
 
