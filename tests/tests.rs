@@ -1824,7 +1824,6 @@ fn test18_strip_failure() {
     compare_files(BASIC18_STRIPPED, &temp_dir.path().join(test_file));
 }
 
-
 #[test]
 fn item_inside_macro() {
     static SRC_RS: &str = r###"

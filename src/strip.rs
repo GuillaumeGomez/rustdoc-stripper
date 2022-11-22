@@ -344,11 +344,7 @@ fn build_event_inner(
             c if c.starts_with("b\"") => move_to(words, it, "\"", line, "b\""),
             // c if c.starts_with("'") => move_to(&words, it, "'", line),
             c if c.starts_with("r#") => {
-                let end = c
-                    .split("#\"")
-                    .next()
-                    .unwrap()
-                    .replace(['"', 'r'], "");
+                let end = c.split("#\"").next().unwrap().replace(['"', 'r'], "");
                 move_to(words, it, &format!("\"{}", end), line, "r#");
             }
             "///" | "///\n" => {
