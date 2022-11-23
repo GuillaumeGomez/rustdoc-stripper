@@ -1823,3 +1823,46 @@ fn test18_strip_failure() {
     );
     compare_files(BASIC18_STRIPPED, &temp_dir.path().join(test_file));
 }
+
+#[test]
+fn item_inside_macro() {
+    static SRC_RS: &str = r###"
+        glib::wrapper! {
+            pub struct BaseInfo: u32 {
+                const READABLE = 5
+            };
+        }
+    "###;
+    static DOCS_MD: &str = r###"<!-- file * -->
+<!-- struct BaseInfo -->
+GIBaseInfo is the common base struct of all other Info structs
+accessible through the [`Repository`][crate::Repository] API.
+<!-- struct BaseInfo::const READABLE -->
+This thing can be read.
+"###;
+    static TARGET_RS: &str = r###"
+        glib::wrapper! {
+            /// GIBaseInfo is the common base struct of all other Info structs
+            /// accessible through the [`Repository`][crate::Repository] API.
+            pub struct BaseInfo: u32 {
+                /// This thing can be read.
+                const READABLE = 5
+            };
+        }
+    "###;
+
+    let src_path = "iim.rs";
+    let docs_path = "iim-docs.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, src_path, SRC_RS);
+    gen_file(&temp_dir, docs_path, DOCS_MD);
+
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        temp_dir.path().join(docs_path).to_str().unwrap(),
+        false,
+        false,
+    );
+    compare_files(TARGET_RS, &temp_dir.path().join(src_path));
+}
