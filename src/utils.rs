@@ -184,13 +184,13 @@ pub fn write_file_name(w: &mut dyn Write, name: Option<&str>) -> io::Result<()> 
 
 /// If the [`TypeStruct`]'s oldest parent (the parent with a *parent*=None) is a [`Type::Macro`][crate::Type::Macro],
 /// this funciton will remove that parent.
-/// 
+///
 /// Useful when trying to compare equality of a `struct SomeStruct` in the doc file,
 /// and `SomeStruct` in the source code is wrapped inside a macro.
 /// In the resulting code, `SomeStruct` would end up outside of the macro,
 /// so even if the perceived path of `SomeStruct` is `macro SomeMacro::struct SomeStruct`,
 /// the content from `struct SomeStruct` has to be written there.
-/// 
+///
 /// This funciton is recursive.
 pub fn remove_macro_parent(tys: &mut TypeStruct) {
     if let Some(parent) = &mut tys.parent {
