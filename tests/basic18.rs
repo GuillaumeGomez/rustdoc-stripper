@@ -242,9 +242,6 @@ fn strip_failure() {
         let mut f = gen_file(&temp_dir, comment_file, "");
         stripper_lib::strip_comments(temp_dir.path(), test_file, &mut f, true);
     }
-    compare_files(
-        &get_md(test_file),
-        &temp_dir.path().join(comment_file),
-    );
+    compare_files(&get_md(test_file), &temp_dir.path().join(comment_file));
     compare_files(SRC_STRIPPED, &temp_dir.path().join(test_file));
 }

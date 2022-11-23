@@ -42,7 +42,6 @@ static TARGET_RS: &str = r###"
     }
 "###;
 
-
 #[test]
 fn item_inside_macro() {
     let src_path = "src.rs";

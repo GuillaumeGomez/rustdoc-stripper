@@ -15,12 +15,11 @@
 extern crate stripper_lib;
 extern crate tempfile;
 
+pub use self::tempfile::tempdir;
+use self::tempfile::TempDir;
 pub use std::fs::File;
 pub use std::io::prelude::*;
 pub use std::path::Path;
-pub use self::tempfile::tempdir;
-use self::tempfile::TempDir;
-
 
 pub fn gen_file(temp_dir: &TempDir, filename: &str, content: &str) -> File {
     let mut f = File::create(temp_dir.path().join(filename)).expect("gen_file");
