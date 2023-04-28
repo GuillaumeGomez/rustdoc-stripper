@@ -451,7 +451,7 @@ fn build_event_inner(
                         if word.ends_with(';') {
                             break;
                         }
-                        if word.starts_with("{") {
+                        if word.starts_with('{') {
                             *it -= 1;
                             break;
                         }
