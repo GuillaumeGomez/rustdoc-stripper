@@ -421,7 +421,7 @@ fn build_event_inner(
                     EventType::Type(TypeStruct::new(Type::from(ty), &name)),
                 ));
             }
-            "struct" | "fn" | "enum" | "const" | "static" | "type" | "trait" | "macro_rules!"
+            "struct" | "enum" | "const" | "static" | "type" | "trait" | "macro_rules!"
             | "flags" => {
                 if *it + 1 >= words.len() {
                     break;
@@ -435,6 +435,32 @@ fn build_event_inner(
                 ));
                 waiting_for_macro = words[*it] == "macro_rules!";
                 *it += 1;
+            }
+            "fn" => {
+                if *it + 1 >= words.len() {
+                    break;
+                }
+                let name = get_before(words[*it + 1], STOP_CHARACTERS);
+                event_list.push(EventInfo::new(
+                    *line,
+                    EventType::Type(TypeStruct::new(Type::from(words[*it]), name)),
+                ));
+                *it += 1;
+                if !name.is_empty() {
+                    while let Some(&word) = words.get(*it) {
+                        if word.ends_with(';') {
+                            break;
+                        }
+                        if word.starts_with("{") {
+                            *it -= 1;
+                            break;
+                        }
+                        if word == "\n" {
+                            *line += 1;
+                        }
+                        *it += 1;
+                    }
+                }
             }
             "!!" => {
                 event_list.push(EventInfo::new(

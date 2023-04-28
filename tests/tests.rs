@@ -1866,3 +1866,42 @@ This thing can be read.
     );
     compare_files(TARGET_RS, &temp_dir.path().join(src_path));
 }
+
+#[test]
+fn fn_with_impl_arg_and_ret() {
+    static SRC_RS: &str = r###"
+        trait ObjectExt {
+            fn impl_arg(&self, t: impl Trait) -> i32;
+            fn impl_no_arg(&self) -> i32;
+        }
+    "###;
+    static DOCS_MD: &str = r###"<!-- file * -->
+<!-- trait ObjectExt::fn impl_arg  -->
+A function that takes an impl trait arg.
+<!-- trait ObjectExt::fn impl_no_arg  -->
+A function that takes no arguments.
+"###;
+    static TARGET_RS: &str = r###"
+        trait ObjectExt {
+            /// A function that takes an impl trait arg.
+            fn impl_arg(&self, t: impl Trait) -> i32;
+            /// A function that takes no arguments.
+            fn impl_no_arg(&self) -> i32;
+        }
+    "###;
+
+    let src_path = "fnimpl.rs";
+    let docs_path = "fnimpl-docs.md";
+    let temp_dir = tempdir().unwrap();
+    gen_file(&temp_dir, src_path, SRC_RS);
+    gen_file(&temp_dir, docs_path, DOCS_MD);
+
+    stripper_lib::regenerate_doc_comments(
+        temp_dir.path().to_str().unwrap(),
+        false,
+        temp_dir.path().join(docs_path).to_str().unwrap(),
+        false,
+        false,
+    );
+    compare_files(TARGET_RS, &temp_dir.path().join(src_path));
+}
