@@ -1,32 +1,5 @@
-[package]
-name = "doc-stripper"
-version = "0.1.0"
-description = "A tool to manipulate rust documentation comments"
-repository = "https://github.com/GuillaumeGomez/rustdoc-stripper"
-homepage = "https://github.com/GuillaumeGomez/rustdoc-stripper"
-readme = "README.md"
-license = "Apache-2.0"
-categories = ["development-tools"]
-keywords = ["rustdoc", "doc", "strip", "tool"]
-edition = "2021"
-
-[dependencies]
-clap = { version = "3.1", features = ["derive"] }
-cargo_metadata = "0.14"
-term = "0.7"
-
-# A noop dependency that changes in the Rust repository, it's a bit of a hack.
-# See the `src/tools/rustc-workspace-hack/README.md` file in `rust-lang/rust`
-# for more information.
-rustc-workspace-hack = "1.0.0"
-
-[lib]
-name = "stripper_lib"
-
-#[[bin]]
-#name = "doc-stripper"
-#path = "src/bin/main.rs"
-
-[[bin]]
-name = "cargo-doc-stripper"
-path = "src/cargo-doc-stripper/main.rs"
+[workspace]
+members = [
+    "cargo-doc-stripper",
+    "cargo-doc-stripper-inner",
+]

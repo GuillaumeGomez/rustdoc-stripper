@@ -1,0 +1,10 @@
+[package]
+name = "cargo-doc-stripper"
+version = "0.0.1"
+authors = ["Guillaume Gomez <guillaume1.gomez@gmail.com>"]
+
+description = "Rust doc stripper"
+repository = "https://github.com/GuillaumeGomez/rustdoc-stripper"
+license = "MIT"
+readme = "README.md"
+edition = "2021"
