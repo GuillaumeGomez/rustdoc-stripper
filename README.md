@@ -1,31 +1,20 @@
-# rustc-tools-example
+# cargo doc-stripper
 
-Example for [rustc-tools crate](https://github.com/GuillaumeGomez/rustc-tools)
-using cargo.
+This tool is used to move documentation into and out of your source code and
+store it into a markdown file (`documentation.md` by default).
 
-This is an example project on how to use and distribute your own linter.
-
-Currently, because of limitations around `librustc_driver`, unless you use
-the exact same rustc as the one used to compile the linter, it'll fail at
-runtime saying that it doesn't find `librustc_driver.so`. To go around that,
-we need to write two cargo binaries:
-
- * One which will run the lints.
- * The other which will run `cargo +[version] linter` to ensure the linter
-   is called with the right rustc binary.
-
-So in short, we install `cargo-tools-inner` with:
+To make it work, you need to install both `cargo-doc-stripper` and `cargo-doc-stripper-inner`.
+You can then run it as follows:
 
 ```
-cd cargo-tools-inner
+cargo doc-stripper --help
+```
+
+If you want to install from this repository, you can do it as follows:
+
+```
+cd cargo-doc-stripper
+cargo install --path .
+cd ../cargo-doc-stripper-inner
 cargo install --path .
 ```
-
-And then we install `cargo-tools` with:
-
-```
-cd cargo-tools
-cargo install --path .
-```
-
-And now you can run `cargo tools` on any crate you want!

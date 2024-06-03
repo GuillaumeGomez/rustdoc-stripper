@@ -126,8 +126,9 @@ fn main() {
 
     static mut output_file: Option<PathBuf> = None;
     static mut input_file: Option<PathBuf> = None;
-    static mut is_strip: bool = false;
-    static mut is_regen: bool = false;
+    let mut is_strip: bool = false;
+    let mut is_regen: bool = false;
+    let mut strip_by_default = false;
 
     let mut to_remove = Vec::new();
     let mut iter_args = cargo_args.iter().enumerate();
@@ -155,29 +156,29 @@ fn main() {
                 to_remove.push(pos);
                 to_remove.push(pos + 1);
             }
+            "--strip-by-default" => {
+                strip_by_default = true;
+                to_remove.push(pos);
+            }
             "--strip" => {
-                unsafe {
-                    is_strip = true;
-                }
+                is_strip = true;
                 to_remove.push(pos);
             }
             "--regen" => {
-                unsafe {
-                    is_regen = true;
-                }
+                is_regen = true;
                 to_remove.push(pos);
             }
             "--help" => {
-                println!("Help for `cargo doc-stripper`");
-                print!(
-                    "\n\n
+                println!(
+                    "Help for `cargo doc-stripper`
 
  --strip             : Strip documentation from provided crate
  --regen             : Regenerate documentation from provided crate
  --output-file [PATH]: Path where the strip documentation will be stored
  --input-file [PATH] : Path from where the stripped documentation will be restored
- --help              : Show this help
-"
+ --strip-by-default  : Unless this option is used, only documentation with
+                       `#[doc_stripper::strip_next]` will be stripped.
+ --help              : Show this help"
                 );
                 std::process::exit(0);
             }
@@ -185,10 +186,10 @@ fn main() {
         }
     }
 
-    if unsafe { is_strip && is_regen } {
+    if is_strip && is_regen {
         eprintln!("Both `--strip` and `--regen` options cannot be used at the same time");
         std::process::exit(1);
-    } else if unsafe { !is_strip && !is_regen } {
+    } else if !is_strip && !is_regen {
         eprintln!("At least one of `--strip` or `--regen` options should be used");
         std::process::exit(1);
     }
@@ -199,13 +200,16 @@ fn main() {
 
     rustc_tools::cargo_integration(&cargo_args, move |args| {
         with_lints(args, vec![], move |store: &mut LintStore| {
-            if unsafe { is_strip } {
+            if is_strip {
                 store.register_early_pass(move || {
-                    doc_stripper::run_doc_stripper(unsafe {
-                        output_file
-                            .clone()
-                            .unwrap_or_else(|| DEFAULT_FILE_NAME.into())
-                    })
+                    unsafe {
+                        doc_stripper::run_doc_stripper(
+                            output_file
+                                .clone()
+                                .unwrap_or_else(|| DEFAULT_FILE_NAME.into()),
+                            strip_by_default,
+                        )
+                    }
                 });
             } else {
                 store.register_early_pass(move || {

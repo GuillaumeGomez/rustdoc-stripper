@@ -12,11 +12,12 @@ use std::path::PathBuf;
 
 use crate::item_to_str;
 
-pub fn run_doc_stripper(output_file: PathBuf) -> Box<dyn EarlyLintPass> {
+pub fn run_doc_stripper(output_file: PathBuf, strip_by_default: bool) -> Box<dyn EarlyLintPass> {
     Box::new(DocStripper {
         items_with_docs: Vec::new(),
         current_path: Vec::new(),
         output_file,
+        strip_by_default,
     })
 }
 
@@ -43,6 +44,7 @@ pub struct DocStripper {
     items_with_docs: Vec<ItemDocInfo>,
     current_path: Vec<String>,
     output_file: PathBuf,
+    strip_by_default: bool,
 }
 
 fn attr_path(attr: &Attribute) -> Option<&[PathSegment]> {
@@ -55,7 +57,7 @@ fn attr_path(attr: &Attribute) -> Option<&[PathSegment]> {
 impl EarlyLintPass for DocStripper {
     fn check_item(&mut self, cx: &EarlyContext<'_>, item: &Item) {
         let mut doc_attrs = Vec::new();
-        let mut ignoring = false;
+        let mut ignoring = !self.strip_by_default;
         for attr in &item.attrs {
             if let Some(doc) = attr.doc_str() {
                 if !ignoring {
