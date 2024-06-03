@@ -1,6 +1,6 @@
-use rustc_ast::{AttrKind, Attribute, PathSegment};
-use rustc_ast::ast::{Item, ItemKind};
+use rustc_ast::ast::Item;
 use rustc_ast::token::CommentKind;
+use rustc_ast::{AttrKind, Attribute, PathSegment};
 use rustc_lint::{EarlyContext, EarlyLintPass, LintContext};
 use rustc_session::{declare_tool_lint, impl_lint_pass};
 use rustc_span::symbol::Symbol;
@@ -9,6 +9,16 @@ use rustc_span::{BytePos, FileName, Span};
 use std::collections::HashMap;
 use std::ops::Range;
 use std::path::PathBuf;
+
+use crate::item_to_str;
+
+pub fn run_doc_stripper(output_file: PathBuf) -> Box<dyn EarlyLintPass> {
+    Box::new(DocStripper {
+        items_with_docs: Vec::new(),
+        current_path: Vec::new(),
+        output_file,
+    })
+}
 
 declare_tool_lint! {
     pub doc_stripper::DOC_STRIPPER,
@@ -19,41 +29,13 @@ impl_lint_pass!(DocStripper => [DOC_STRIPPER]);
 
 #[derive(Debug)]
 pub struct ItemDocInfo {
-    // For example: `a::b::c`.
     path: Vec<String>,
     doc_comments: Vec<(Symbol, Span)>,
 }
 
-fn item_to_str(item: &Item) -> &'static str {
-    match item.kind {
-        ItemKind::Const(..) => "const",
-        ItemKind::GlobalAsm(..) | ItemKind::Delegation(..) => {
-            panic!("{:?} is not supported by `doc_stripper`", item.kind)
-        }
-        ItemKind::Enum(..) => "enum",
-        ItemKind::ExternCrate(..) => "crate",
-        ItemKind::Fn(..) => "fn",
-        ItemKind::ForeignMod(..) => "foreign_mod",
-        ItemKind::Impl(..) => "impl",
-        ItemKind::MacCall(..) => "macro call",
-        ItemKind::MacroDef(..) => "macro",
-        ItemKind::Mod(..) => "mod",
-        ItemKind::Static(..) => "static",
-        ItemKind::Struct(..) => "struct",
-        ItemKind::Trait(..) => "trait",
-        ItemKind::TraitAlias(..) => "trait_alias",
-        ItemKind::TyAlias(..) => "ty_alias",
-        ItemKind::Union(..) => "union",
-        ItemKind::Use(..) => "use",
-    }
-}
-
 impl ItemDocInfo {
     fn new(path: Vec<String>, doc_comments: Vec<(Symbol, Span)>) -> Self {
-        Self {
-            path,
-            doc_comments,
-        }
+        Self { path, doc_comments }
     }
 }
 
@@ -61,14 +43,6 @@ pub struct DocStripper {
     items_with_docs: Vec<ItemDocInfo>,
     current_path: Vec<String>,
     output_file: PathBuf,
-}
-
-pub fn run_doc_stripper(output_file: PathBuf) -> Box<dyn EarlyLintPass> {
-    Box::new(DocStripper {
-        items_with_docs: Vec::new(),
-        current_path: Vec::new(),
-        output_file,
-    })
 }
 
 fn attr_path(attr: &Attribute) -> Option<&[PathSegment]> {
@@ -79,7 +53,7 @@ fn attr_path(attr: &Attribute) -> Option<&[PathSegment]> {
 }
 
 impl EarlyLintPass for DocStripper {
-    fn check_item(&mut self, cx: &EarlyContext<'_>, item: &rustc_ast::Item) {
+    fn check_item(&mut self, cx: &EarlyContext<'_>, item: &Item) {
         let mut doc_attrs = Vec::new();
         let mut ignoring = false;
         for attr in &item.attrs {
@@ -108,15 +82,14 @@ impl EarlyLintPass for DocStripper {
                 }
             }
         }
-        self.current_path
-            .push(format!("{} {}", item_to_str(item), item.ident.name));
+        self.current_path.push(item_to_str(item));
         if !doc_attrs.is_empty() {
             self.items_with_docs
                 .push(ItemDocInfo::new(self.current_path.clone(), doc_attrs));
         }
     }
 
-    fn check_item_post(&mut self, cx: &EarlyContext<'_>, _: &rustc_ast::Item) {
+    fn check_item_post(&mut self, _: &EarlyContext<'_>, _: &rustc_ast::Item) {
         self.current_path.pop();
     }
 
@@ -129,13 +102,20 @@ impl EarlyLintPass for DocStripper {
             if !out_md_docs.is_empty() {
                 out_md_docs.push('\n');
             }
-            out_md_docs.push_str(&format!("<!-- {} -->\n\n", item.path.join("/")));
+            out_md_docs.push_str(&format!(
+                "{}{} -->\n\n",
+                crate::COMMENT_START,
+                item.path.join("/")
+            ));
             for (doc, span) in &item.doc_comments {
                 let filename = source_map.span_to_filename(*span);
                 if let FileName::Real(ref filename) = filename
                     && let Some(local_path) = filename.local_path()
                 {
-                    files.entry(local_path.to_path_buf()).or_insert(Vec::new()).push(*span);
+                    files
+                        .entry(local_path.to_path_buf())
+                        .or_insert(Vec::new())
+                        .push(*span);
                 }
                 out_md_docs.push_str(doc.as_str());
                 out_md_docs.push('\n');
@@ -145,7 +125,10 @@ impl EarlyLintPass for DocStripper {
             Ok(o) => o,
             Err(_) => self.output_file.clone(),
         };
-        eprintln!("Storing stripped documentation into `{}`", output_file.display());
+        println!(
+            "Storing stripped documentation into `{}`",
+            output_file.display()
+        );
         std::fs::write(output_file, out_md_docs).unwrap();
         for (file_path, mut spans) in files {
             spans.sort_unstable_by(|sp1, sp2| sp1.lo().partial_cmp(&sp2.lo()).unwrap());
@@ -157,7 +140,7 @@ impl EarlyLintPass for DocStripper {
                 out.splice(
                     Range {
                         start: span.lo().0 as usize - start,
-                        end: span.hi().0 as usize - start
+                        end: span.hi().0 as usize - start,
                     },
                     [],
                 );
